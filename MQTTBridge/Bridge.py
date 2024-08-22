@@ -79,11 +79,13 @@ class Bridge:
 
     def stop(self):
         self.logger.info("Stopping MQTTBridge")
+        self.__client.publish(f"{self.__my_base_topic}/status", "Disconnected", 1, True)
+        self.__client.disconnect()
         self.__client.loop_stop()
 
         for job in self.scheduled_jobs:
             schedule.cancel_job(job)
-            del self.scheduled_jobs[job]
+            self.scheduled_jobs.remove(job)
 
     def handle_connect(self, client, userdata, flags, reason_code, properties):
         """

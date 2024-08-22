@@ -1,5 +1,7 @@
 #!/bin/env python3
 import logging, subprocess, json
+import signal
+import sys
 from MQTTBridge.Bridge import Bridge
 
 logger = logging.getLogger(__name__)
@@ -15,4 +17,9 @@ if __name__ == '__main__':
         identifier=eth0_mac
     )
 
+    def signal_handler(sig, frame):
+        logger.info('Caught signal {}'.format(sig))
+        bridge.stop()
+        sys.exit(0)
+    signal.signal(signal.SIGINT, signal_handler)
     bridge.run()
