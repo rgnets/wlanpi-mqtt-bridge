@@ -1,15 +1,17 @@
 import subprocess, requests, json
 import logging
 
+
 class CoreClient:
     def __init__(
             self,
-            api_url='http://127.0.0.1:31415/api/v1',
+            base_url='http://127.0.0.1:31415',
     ):
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f'Initializing CoreClient against {api_url}')
-        self.api_url = api_url
-        self.openapi_def_path = f"{api_url}/openapi.json"
+        self.logger.info(f'Initializing CoreClient against {base_url}')
+        self.base_url = base_url
+        self.api_url = f"{base_url}/api/v1"
+        self.openapi_def_path = f"{self.api_url}/openapi.json"
 
         self.base_headers = {
             "accept": "application/json",
@@ -18,7 +20,8 @@ class CoreClient:
         self.logger.info("CoreClient initialized")
 
     def get_openapi_definition(self):
-        return requests.get(url = self.openapi_def_path, headers = self.base_headers).json()
+        self.logger.debug(f"Fetching OpenAPI definition from {self.openapi_def_path}")
+        return requests.get(url=self.openapi_def_path, headers=self.base_headers).json()
 
     def get_current_path_data(self, path):
         self.logger.debug(f'Getting current path data for {path}')
@@ -41,7 +44,7 @@ class CoreClient:
             target_url,
             json=data,
             headers=self.base_headers,
-         )
+        )
 
         if response.status_code != 200:
             self.logger.error("Unable to successfully relay data")
@@ -49,3 +52,13 @@ class CoreClient:
             self.logger.error(response.raw)
             return 'ERROR'
         return response.json()
+
+    def execute_request(self, method: str, path: str, data):
+        self.logger.debug(f"Executing {method.upper()} on path {path} with data: {str(data)}")
+        response = requests.request(
+            method=method,
+            url=f"{self.base_url}/{path}",
+            json=data,
+            headers=self.base_headers,
+        )
+        return response

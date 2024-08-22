@@ -1,10 +1,10 @@
-import time
-from typing import Optional
-import logging, json, schedule
-
+import time, logging, json, schedule
+from typing import Optional, Union
 import paho.mqtt.client as mqtt
 
 from MQTTBridge.CoreClient import CoreClient
+from MQTTBridge.structures import Route, MQTTResponse
+from MQTTBridge.Utils import get_full_class_name
 
 
 class Bridge:
@@ -14,18 +14,17 @@ class Bridge:
             self,
             mqtt_server: str = "wi.fi",
             mqtt_port: int = 1883,
-            wlan_pi_core_api_url : str = "http://127.0.0.1:31415/api/v1",
+            wlan_pi_core_base_url: str = "http://127.0.0.1:31415",
             identifier: Optional[str] = None,
     ):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
         self.mqtt_server = mqtt_server
         self.mqtt_port = mqtt_port
-        self.__api_url = wlan_pi_core_api_url
-        self.__openapi_def_path = f"{self.__api_url}/openapi.json"
+        self.__core_base_url = wlan_pi_core_base_url
         self.__my_base_topic = f"wlan-pi/{identifier}"
         self.__client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        self.__core_client = CoreClient(self.__api_url)
+        self.__core_client = CoreClient(base_url=self.__core_base_url)
 
         # Endpoints in the core that should be routinely polled and updated
         # This may go away if we can figure out to do event-based updates
@@ -35,12 +34,17 @@ class Bridge:
 
         # Topics to monitor for changes
         self.topics_of_interest = [
-            f"{self.__global_base_topic}/#",
-            f"{self.__my_base_topic}/#"
+            # f"{self.__global_base_topic}/#",
+            # f"{self.__my_base_topic}/#"
         ]
 
         # Holds scheduled jobs from `scheduler` so we can clean them up on exit.
         self.scheduled_jobs = []
+
+        # Stores the route mappings between MQTT topics and REST endpoints
+        self.bridge_routes = {}
+
+        self.add_routes_from_openapi_definition()
 
     def additional_supported_endpoints(self):
         """
@@ -55,20 +59,15 @@ class Bridge:
         :return:
         """
         self.logger.info("Starting MQTTBridge")
-        self.__client.on_connect = lambda client, userdata, flags, reason_code, properties: self.handle_connect(client, userdata, flags, reason_code, properties)
+        self.__client.on_connect = lambda client, userdata, flags, reason_code, properties: self.handle_connect(client,
+                                                                                     properties)
         self.__client.on_message = lambda client, userdata, msg: self.handle_message(client, userdata, msg)
 
         self.__client.will_set(f"{self.__my_base_topic}/status", "Abnormally Disconnected", 1, True)
         self.__client.connect(self.mqtt_server, self.mqtt_port, 60)
 
-        # Blocking call that processes network traffic, dispatches callbacks and
-        # handles reconnecting.
-        # Other loop*() functions are available that give a threaded interface and a
-        # manual interface.
-        #self.__client.loop_forever()
-
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
-        self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
+        # self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
 
         # Start the MQTT client loop,
         self.__client.loop_start()
@@ -77,7 +76,11 @@ class Bridge:
             schedule.run_pending()
             time.sleep(1)
 
-    def stop(self):
+    def stop(self) -> None:
+        """
+        Closes the MQTT connection and shuts down any scheduled tasks for a clean exit.
+        :return:
+        """
         self.logger.info("Stopping MQTTBridge")
         self.__client.publish(f"{self.__my_base_topic}/status", "Disconnected", 1, True)
         self.__client.disconnect()
@@ -86,6 +89,19 @@ class Bridge:
         for job in self.scheduled_jobs:
             schedule.cancel_job(job)
             self.scheduled_jobs.remove(job)
+
+    def add_subscription(self, topic) -> bool:
+        """
+        Adds an MQTT subscription, and tracks it for resubscription on reconnect
+        :param topic: The MQTT topic to subscribe to
+        :return: Whether the subscription was successfully added
+        """
+        if topic not in self.topics_of_interest:
+            result, mid = self.__client.subscribe(topic)
+            self.topics_of_interest.append(topic)
+            return result == mqtt.MQTT_ERR_SUCCESS
+        else:
+            return True
 
     def handle_connect(self, client, userdata, flags, reason_code, properties):
         """
@@ -124,18 +140,103 @@ class Bridge:
             response = self.__core_client.get_current_path_data(endpoint)
             self.__client.publish(f"{self.__my_base_topic}/{endpoint}/current", json.dumps(response))
 
-
     def handle_message(self, client, userdata, msg):
+        """
+        Handles all incoming MQTT messages, usually dispatching them onward to the REST API
+        :param client:
+        :param userdata:
+        :param msg:
+        :return:
+        """
         self.logger.debug(f"Received message on topic '{msg.topic}': {str(msg.payload)}")
+        self.logger.debug(f"User Data: {str(userdata)}")
 
-        # Watch for topics that match our base topic or the global one:
-        if msg.topic.startswith(self.__my_base_topic) and msg.topic.endswith("/set"):
-            item_path = msg.topic.removeprefix(f"{self.__my_base_topic}/").removesuffix("/set")
-            item_url = f"{self.__api_url}/{item_path}"
+        if msg.topic in self.bridge_routes.keys():
+            route = self.bridge_routes[msg.topic]
 
-            result = self.__core_client.create_path(item_url, json.loads(msg.payload))
-            client.publish(f"{self.__my_base_topic}/{item_path}/result", json.dumps(result))
+            try:
+                response = self.__core_client.execute_request(
+                    method=route.method,
+                    path=route.route,
+                    data=json.loads(msg.payload) if msg.payload is not None and msg.payload not in ['', b''] else None,
+                )
+                mqtt_response = MQTTResponse(
+                    status='success' if response.ok else 'rest_error',
+                    rest_status=response.status_code,
+                    rest_reason=response.reason,
+                    data=response.text
+                )
+                route.callback(
+                    client=client,
+                    topic=route.response_topic,
+                    message=mqtt_response.to_json()
+                )
+            except Exception as e:
+                self.logger.error(f"Exception while handling message on topic '{msg.topic}'", exc_info=e)
+                client.publish(route.response_topic,
+                               MQTTResponse(
+                                   status='bridge_error',
+                                   errors=[[get_full_class_name(e), str(e)]],
+                               ).to_json())
 
+        else:
+            client.publish(f"{msg.topic}/response",
+                           MQTTResponse(
+                               status='bridge_error',
+                               errors=[['NoBridgeRouteFound', "No route found for topic  \'{msg.topic}\'"]],
+                           ).to_json())
+            self.logger.warning(f"No route found for topic '{msg.topic}'")
+
+    def add_routes_from_openapi_definition(self, openapi_definition: Optional[dict] = None) -> None:
+        """
+        Add routes to the bridge based on the open api definition.
+        :param openapi_definition: The parsed OpenAPI definition. If not provided, the OpenAPI definition will be retrieved from the CoreClient.
+        :return: None
+        """
+        if openapi_definition is None:
+            openapi_definition = self.__core_client.get_openapi_definition()
+
+        for uri, action in openapi_definition['paths'].items():
+            for method, definition in action.items():
+                topic = f"{uri}/{method}"
+                # Add route to respond to our own topics
+                self.add_route(Route(
+                    route=uri,
+                    topic=f"{self.__my_base_topic}{topic}",
+                    method=method,
+                    callback=self.default_callback
+                ))
+
+                # Add route to respond to global topics, but respond on our own.
+                self.add_route(Route(
+                    route=uri,
+                    topic=f"{self.__global_base_topic}{topic}",
+                    response_topic=self.bridge_routes[f"{self.__my_base_topic}{topic}"].response_topic,
+                    method=method,
+                    callback=self.default_callback
+                ))
+
+    def add_route(self, route: Route) -> bool:
+        """
+        Adds a route to the route lookup table
+        :param route: A populated Route object.
+        :return: Whether the Route was added to the lookup table.
+        """
+        if self.add_subscription(route.topic):
+            self.bridge_routes[route.topic] = route
+            return True
+        return False
+
+    def default_callback(self, client, topic, message: Union[str, bytes]) -> None:
+        """
+        Default callback for sending a REST response on to the MQTT endpoint.
+        :param client:
+        :param topic:
+        :param message:
+        :return:
+        """
+        self.logger.info(f"Default callback. Topic: {topic} Message: {str(message)}")
+        client.publish(topic, message)
 
     def __enter__(self):
         return self
