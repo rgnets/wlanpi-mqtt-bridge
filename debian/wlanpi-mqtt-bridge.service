@@ -1,0 +1,30 @@
+# wlanpi-mqtt-bridge.service
+
+# TODO: Automate recovery, if needed: https://www.redhat.com/sysadmin/systemd-automate-recovery
+
+[Unit]
+Description=Bridge between the configured MQTT server and WLAN Pi core
+Requires=wlanpi-core.socket
+After=network.target
+StartLimitIntervalSec=30
+StartLimitBurst=4
+
+[Service]
+Type=notify
+
+# this is a soft link created via maintainer script
+WorkingDirectory=/opt/wlanpi-mqtt-bridge/workingdirectory
+ExecStart=/opt/wlanpi-mqtt-bridge/bin/wlanpi-mqtt-bridge
+# TODO: Finalize exec method
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+Restart=on-failure
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
