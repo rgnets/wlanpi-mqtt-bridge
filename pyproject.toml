@@ -19,10 +19,13 @@ dependencies = [
     "requests",
     "schedule",
     "paho_mqtt",
+    "pydantic-settings"
 ]
 
 [project.optional-dependencies]
 dev = [
+    "mypy",
+    "black",
     "types-paho-mqtt",
     "types-requests",
 ]

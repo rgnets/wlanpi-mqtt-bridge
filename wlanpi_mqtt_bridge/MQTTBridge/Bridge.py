@@ -27,7 +27,7 @@ class Bridge:
         self.mqtt_port = mqtt_port
         self.__core_base_url = wlan_pi_core_base_url
         self.__my_base_topic = f"wlan-pi/{identifier}"
-        self.__client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.__client = mqtt.Client(mqtt.CallbackAPIVersion.API_VERSION2)
         self.__core_client = CoreClient(base_url=self.__core_base_url)
 
         # Endpoints in the core that should be routinely polled and updated
@@ -35,21 +35,22 @@ class Bridge:
         self.monitored_core_endpoints = ["network_config/ethernet/vlans"]
 
         # Topics to monitor for changes
-        self.topics_of_interest = [
+        self.topics_of_interest: list[str] = [
             # f"{self.__global_base_topic}/#",
             # f"{self.__my_base_topic}/#"
         ]
 
         # Holds scheduled jobs from `scheduler` so we can clean them up
         # on exit.
-        self.scheduled_jobs = []
+        self.scheduled_jobs: list[schedule.Job] = []
 
         # Stores the route mappings between MQTT topics and REST endpoints
-        self.bridge_routes = {}
+        self.bridge_routes: dict[str, Route] = dict()
 
         self.add_routes_from_openapi_definition()
 
-    def additional_supported_endpoints(self):
+    @staticmethod
+    def additional_supported_endpoints():
         """
         Defines a list of additional endpoints supported by this bridge
         itself that are not part of the openapi definition
@@ -65,14 +66,15 @@ class Bridge:
         """
         self.logger.info("Starting MQTTBridge")
 
-        def on_connect(client, userdata, flags, reason_code, properties):
+        def on_connect(client, userdata, flags, reason_code, properties) -> None:
             return self.handle_connect(client, userdata, flags, reason_code, properties)
 
         self.__client.on_connect = on_connect
 
-        self.__client.on_message = lambda client, userdata, msg: self.handle_message(
-            client, userdata, msg
-        )
+        def on_message(client, userdata, msg) -> None:
+            return self.handle_message(client, userdata, msg)
+
+        self.__client.on_message = on_message
 
         self.__client.will_set(
             f"{self.__my_base_topic}/status", "Abnormally Disconnected", 1, True
@@ -105,7 +107,7 @@ class Bridge:
 
     def add_subscription(self, topic) -> bool:
         """
-        Adds an MQTT subscription, and tracks it for resubscription on reconnect
+        Adds an MQTT subscription, and tracks it for re-subscription on reconnect
         :param topic: The MQTT topic to subscribe to
         :return: Whether the subscription was successfully added
         """
@@ -116,26 +118,30 @@ class Bridge:
         else:
             return True
 
-    def handle_connect(self, client, userdata, flags, reason_code, properties):
+    # noinspection PyUnusedLocal
+    def handle_connect(self, client, userdata, flags, reason_code, properties) -> None:
         """
-        Handles the connect event from Paho. This is called when a connection has been established and we are ready to send messages.
-        :param client: An instance of Paho's Client class that is used to send and receive messages
+        Handles the connect event from Paho. This is called when a connection
+        has been established, and we are ready to send messages.
+        :param client: An instance of Paho's Client class that is used to send
+         and receive messages
         :param userdata:
         :param flags:
-        :param reason_code: The reason code that was received from the MQTT broker
+        :param reason_code: The reason code that was received from the MQTT
+         broker
         :param properties:
         :return:
         """
         self.logger.info(f"Connected with result code {reason_code}.")
 
         # Publish our current API definition to our own topic:
-        self.logger.debug(f"Telling them a little about ourselves.")
+        self.logger.debug("Telling them a little about ourselves.")
         openapi_definition = self.__core_client.get_openapi_definition()
         client.publish(
             f"{self.__my_base_topic}/openapi", json.dumps(openapi_definition), 1, True
         )
 
-        self.logger.info(f"Subscribing to topics of interest.")
+        self.logger.info("Subscribing to topics of interest.")
         # Subscribe to the topics we're going to care about.
         for topic in self.topics_of_interest:
             self.logger.debug(f"Subscribing to {topic}")
@@ -147,9 +153,9 @@ class Bridge:
         # Now do the first round of periodic data:
         self.publish_periodic_data()
 
-    def publish_periodic_data(self):
+    def publish_periodic_data(self) -> None:
         # self.__client.publish()
-        self.logger.info(f"Publishing periodic data.")
+        self.logger.info("Publishing periodic data.")
         for endpoint in self.monitored_core_endpoints:
             self.logger.debug(f"Publishing '{endpoint}'")
             response = self.__core_client.get_current_path_data(endpoint)
@@ -157,9 +163,10 @@ class Bridge:
                 f"{self.__my_base_topic}/{endpoint}/current", json.dumps(response)
             )
 
-    def handle_message(self, client, userdata, msg):
+    def handle_message(self, client, userdata, msg) -> None:
         """
-        Handles all incoming MQTT messages, usually dispatching them onward to the REST API
+        Handles all incoming MQTT messages, usually dispatching them onward
+        to the REST API
         :param client:
         :param userdata:
         :param msg:
@@ -227,7 +234,8 @@ class Bridge:
     ) -> None:
         """
         Add routes to the bridge based on the open api definition.
-        :param openapi_definition: The parsed OpenAPI definition. If not provided, the OpenAPI definition will be retrieved from the CoreClient.
+        :param openapi_definition: The parsed OpenAPI definition. If not
+            provided, the OpenAPI definition will be retrieved from the CoreClient.
         :return: None
         """
         if openapi_definition is None:
@@ -281,8 +289,8 @@ class Bridge:
         self.logger.info(f"Default callback. Topic: {topic} Message: {str(message)}")
         client.publish(topic, message)
 
-    def __enter__(self):
+    def __enter__(self) -> object:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.stop()

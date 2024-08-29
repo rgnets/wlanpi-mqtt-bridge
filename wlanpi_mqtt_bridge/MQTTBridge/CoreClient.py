@@ -1,4 +1,5 @@
 import logging
+
 import requests
 
 
@@ -19,7 +20,7 @@ class CoreClient:
         }
         self.logger.info("CoreClient initialized")
 
-    def get_openapi_definition(self):
+    def get_openapi_definition(self) -> dict:
         self.logger.debug(f"Fetching OpenAPI definition from {self.openapi_def_path}")
         return requests.get(url=self.openapi_def_path, headers=self.base_headers).json()
 

@@ -1,4 +1,4 @@
-def get_full_class_name(obj):
+def get_full_class_name(obj: object) -> str:
     """
     Gets the full class name and path of an object for use in errors.
     :param obj: The object to get the name and path of

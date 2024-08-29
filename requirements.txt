@@ -4,6 +4,8 @@
 #
 #    pip-compile --output-file=requirements.txt pyproject.toml
 #
+annotated-types==0.7.0
+    # via pydantic
 certifi==2024.7.4
     # via requests
 charset-normalizer==3.3.2
@@ -12,9 +14,21 @@ idna==3.8
     # via requests
 paho-mqtt==2.1.0
     # via wlanpi-mqtt-bridge (pyproject.toml)
+pydantic==2.8.2
+    # via pydantic-settings
+pydantic-core==2.20.1
+    # via pydantic
+pydantic-settings==2.4.0
+    # via wlanpi-mqtt-bridge (pyproject.toml)
+python-dotenv==1.0.1
+    # via pydantic-settings
 requests==2.32.3
     # via wlanpi-mqtt-bridge (pyproject.toml)
 schedule==1.2.2
     # via wlanpi-mqtt-bridge (pyproject.toml)
+typing-extensions==4.12.2
+    # via
+    #   pydantic
+    #   pydantic-core
 urllib3==2.2.2
     # via requests

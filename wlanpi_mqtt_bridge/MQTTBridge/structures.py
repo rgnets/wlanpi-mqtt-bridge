@@ -7,7 +7,8 @@ from requests import JSONDecodeError
 
 class Route:
     """
-    Represents a mapping between a REST API route, REST method, and MQTT topics for its invocation and response.
+    Represents a mapping between a REST API route, REST method, and MQTT
+    topics for its invocation and response.
     """
 
     def __init__(
@@ -27,22 +28,26 @@ class Route:
         self.method = method
         self.callback = callback or self.default_callback
 
+    # noinspection PyUnusedLocal
     def default_callback(self, *args, **kwargs) -> None:
         self.logger.info(
-            f"Default do-nothing callback for {self.topic}. You should really define one that does something."
+            f"Default do-nothing callback for {self.topic}. You should really"
+            "define one that does something."
         )
 
 
 class MQTTResponse:
     """
-    Standardized MQTT response object that contains details on internal failures, REST failures, and the response data.
-    Additionally, it tries to parse the response data into JSON but will return the original data in case of failure.
+    Standardized MQTT response object that contains details on internal
+    failures, REST failures, and the response data. Additionally, it
+    tries to parse the response data into JSON but will return the
+    original data in case of failure.
     """
 
     def __init__(
         self,
         data=None,
-        errors: list = None,
+        errors: Optional[list] = None,
         status: Literal[
             "success", "bridge_error", "rest_error", "other_error"
         ] = "success",
@@ -51,7 +56,7 @@ class MQTTResponse:
     ):
         self.logger = logging.getLogger(__name__)
         if errors is None:
-            self.errors = []
+            self.errors: list = []
         self.status = status
         self.data = data
         self.rest_status = rest_status
