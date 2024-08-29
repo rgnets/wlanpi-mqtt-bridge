@@ -2,9 +2,9 @@ import time, logging, json, schedule
 from typing import Optional, Union
 import paho.mqtt.client as mqtt
 
-from MQTTBridge.CoreClient import CoreClient
-from MQTTBridge.structures import Route, MQTTResponse
-from MQTTBridge.Utils import get_full_class_name
+from wlanpi_mqtt_bridge.MQTTBridge.CoreClient import CoreClient
+from wlanpi_mqtt_bridge.MQTTBridge.structures import Route, MQTTResponse
+from wlanpi_mqtt_bridge.MQTTBridge.Utils import get_full_class_name
 
 
 class Bridge:
