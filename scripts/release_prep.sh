@@ -4,10 +4,7 @@ cd "$(dirname "$0")" || exit 1
 set -x
 
 echo "Updating requirements"
-cd ../
-pip-compile --extra=dev --output-file=requirements-dev.txt pyproject.toml
-pip-compile --output-file=requirements.txt pyproject.toml
-cd "$(dirname "$0")" || exit 1
+./generate_requirements.sh
 
 echo "Formatting..."
 ./format.sh
