@@ -1,9 +1,13 @@
-import time, logging, json, schedule
+import json
+import logging
+import time
 from typing import Optional, Union
+
 import paho.mqtt.client as mqtt
+import schedule
 
 from wlanpi_mqtt_bridge.MQTTBridge.CoreClient import CoreClient
-from wlanpi_mqtt_bridge.MQTTBridge.structures import Route, MQTTResponse
+from wlanpi_mqtt_bridge.MQTTBridge.structures import MQTTResponse, Route
 from wlanpi_mqtt_bridge.MQTTBridge.Utils import get_full_class_name
 
 
@@ -11,11 +15,11 @@ class Bridge:
     __global_base_topic = "wlan-pi/all"
 
     def __init__(
-            self,
-            mqtt_server: str = "wi.fi",
-            mqtt_port: int = 1883,
-            wlan_pi_core_base_url: str = "http://127.0.0.1:31415",
-            identifier: Optional[str] = None,
+        self,
+        mqtt_server: str = "wi.fi",
+        mqtt_port: int = 1883,
+        wlan_pi_core_base_url: str = "http://127.0.0.1:31415",
+        identifier: Optional[str] = None,
     ):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
@@ -28,9 +32,7 @@ class Bridge:
 
         # Endpoints in the core that should be routinely polled and updated
         # This may go away if we can figure out to do event-based updates
-        self.monitored_core_endpoints = [
-            'network_config/ethernet/vlans'
-        ]
+        self.monitored_core_endpoints = ["network_config/ethernet/vlans"]
 
         # Topics to monitor for changes
         self.topics_of_interest = [
@@ -38,7 +40,8 @@ class Bridge:
             # f"{self.__my_base_topic}/#"
         ]
 
-        # Holds scheduled jobs from `scheduler` so we can clean them up on exit.
+        # Holds scheduled jobs from `scheduler` so we can clean them up
+        # on exit.
         self.scheduled_jobs = []
 
         # Stores the route mappings between MQTT topics and REST endpoints
@@ -48,22 +51,32 @@ class Bridge:
 
     def additional_supported_endpoints(self):
         """
-        Defines a list of additional endpoints supported by this bridge itself that are not part of the openapi definition
+        Defines a list of additional endpoints supported by this bridge
+        itself that are not part of the openapi definition
         :return: []
         """
         return []
 
     def run(self):
         """
-        Run the bridge. This calls the Paho client's `.loop_forever()` method, which blocks until the Paho client is disconnected.
+        Run the bridge. This calls the Paho client's `.loop_forever()` method,
+        which blocks until the Paho client is disconnected.
         :return:
         """
         self.logger.info("Starting MQTTBridge")
-        self.__client.on_connect = lambda client, userdata, flags, reason_code, properties: self.handle_connect(client,
-                                                                                     properties)
-        self.__client.on_message = lambda client, userdata, msg: self.handle_message(client, userdata, msg)
 
-        self.__client.will_set(f"{self.__my_base_topic}/status", "Abnormally Disconnected", 1, True)
+        def on_connect(client, userdata, flags, reason_code, properties):
+            return self.handle_connect(client, userdata, flags, reason_code, properties)
+
+        self.__client.on_connect = on_connect
+
+        self.__client.on_message = lambda client, userdata, msg: self.handle_message(
+            client, userdata, msg
+        )
+
+        self.__client.will_set(
+            f"{self.__my_base_topic}/status", "Abnormally Disconnected", 1, True
+        )
         self.__client.connect(self.mqtt_server, self.mqtt_port, 60)
 
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
@@ -118,7 +131,9 @@ class Bridge:
         # Publish our current API definition to our own topic:
         self.logger.debug(f"Telling them a little about ourselves.")
         openapi_definition = self.__core_client.get_openapi_definition()
-        client.publish(f"{self.__my_base_topic}/openapi", json.dumps(openapi_definition), 1, True)
+        client.publish(
+            f"{self.__my_base_topic}/openapi", json.dumps(openapi_definition), 1, True
+        )
 
         self.logger.info(f"Subscribing to topics of interest.")
         # Subscribe to the topics we're going to care about.
@@ -138,7 +153,9 @@ class Bridge:
         for endpoint in self.monitored_core_endpoints:
             self.logger.debug(f"Publishing '{endpoint}'")
             response = self.__core_client.get_current_path_data(endpoint)
-            self.__client.publish(f"{self.__my_base_topic}/{endpoint}/current", json.dumps(response))
+            self.__client.publish(
+                f"{self.__my_base_topic}/{endpoint}/current", json.dumps(response)
+            )
 
     def handle_message(self, client, userdata, msg):
         """
@@ -148,7 +165,9 @@ class Bridge:
         :param msg:
         :return:
         """
-        self.logger.debug(f"Received message on topic '{msg.topic}': {str(msg.payload)}")
+        self.logger.debug(
+            f"Received message on topic '{msg.topic}': {str(msg.payload)}"
+        )
         self.logger.debug(f"User Data: {str(userdata)}")
 
         if msg.topic in self.bridge_routes.keys():
@@ -158,36 +177,54 @@ class Bridge:
                 response = self.__core_client.execute_request(
                     method=route.method,
                     path=route.route,
-                    data=json.loads(msg.payload) if msg.payload is not None and msg.payload not in ['', b''] else None,
+                    data=(
+                        json.loads(msg.payload)
+                        if msg.payload is not None and msg.payload not in ["", b""]
+                        else None
+                    ),
                 )
                 mqtt_response = MQTTResponse(
-                    status='success' if response.ok else 'rest_error',
+                    status="success" if response.ok else "rest_error",
                     rest_status=response.status_code,
                     rest_reason=response.reason,
-                    data=response.text
+                    data=response.text,
                 )
                 route.callback(
                     client=client,
                     topic=route.response_topic,
-                    message=mqtt_response.to_json()
+                    message=mqtt_response.to_json(),
                 )
             except Exception as e:
-                self.logger.error(f"Exception while handling message on topic '{msg.topic}'", exc_info=e)
-                client.publish(route.response_topic,
-                               MQTTResponse(
-                                   status='bridge_error',
-                                   errors=[[get_full_class_name(e), str(e)]],
-                               ).to_json())
+                self.logger.error(
+                    f"Exception while handling message on topic '{msg.topic}'",
+                    exc_info=e,
+                )
+                client.publish(
+                    route.response_topic,
+                    MQTTResponse(
+                        status="bridge_error",
+                        errors=[[get_full_class_name(e), str(e)]],
+                    ).to_json(),
+                )
 
         else:
-            client.publish(f"{msg.topic}/response",
-                           MQTTResponse(
-                               status='bridge_error',
-                               errors=[['NoBridgeRouteFound', "No route found for topic  \'{msg.topic}\'"]],
-                           ).to_json())
+            client.publish(
+                f"{msg.topic}/response",
+                MQTTResponse(
+                    status="bridge_error",
+                    errors=[
+                        [
+                            "NoBridgeRouteFound",
+                            "No route found for topic  '{msg.topic}'",
+                        ]
+                    ],
+                ).to_json(),
+            )
             self.logger.warning(f"No route found for topic '{msg.topic}'")
 
-    def add_routes_from_openapi_definition(self, openapi_definition: Optional[dict] = None) -> None:
+    def add_routes_from_openapi_definition(
+        self, openapi_definition: Optional[dict] = None
+    ) -> None:
         """
         Add routes to the bridge based on the open api definition.
         :param openapi_definition: The parsed OpenAPI definition. If not provided, the OpenAPI definition will be retrieved from the CoreClient.
@@ -196,25 +233,31 @@ class Bridge:
         if openapi_definition is None:
             openapi_definition = self.__core_client.get_openapi_definition()
 
-        for uri, action in openapi_definition['paths'].items():
+        for uri, action in openapi_definition["paths"].items():
             for method, definition in action.items():
                 topic = f"{uri}/{method}"
                 # Add route to respond to our own topics
-                self.add_route(Route(
-                    route=uri,
-                    topic=f"{self.__my_base_topic}{topic}",
-                    method=method,
-                    callback=self.default_callback
-                ))
+                self.add_route(
+                    Route(
+                        route=uri,
+                        topic=f"{self.__my_base_topic}{topic}",
+                        method=method,
+                        callback=self.default_callback,
+                    )
+                )
 
                 # Add route to respond to global topics, but respond on our own.
-                self.add_route(Route(
-                    route=uri,
-                    topic=f"{self.__global_base_topic}{topic}",
-                    response_topic=self.bridge_routes[f"{self.__my_base_topic}{topic}"].response_topic,
-                    method=method,
-                    callback=self.default_callback
-                ))
+                self.add_route(
+                    Route(
+                        route=uri,
+                        topic=f"{self.__global_base_topic}{topic}",
+                        response_topic=self.bridge_routes[
+                            f"{self.__my_base_topic}{topic}"
+                        ].response_topic,
+                        method=method,
+                        callback=self.default_callback,
+                    )
+                )
 
     def add_route(self, route: Route) -> bool:
         """

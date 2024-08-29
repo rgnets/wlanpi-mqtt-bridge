@@ -2,3 +2,5 @@
 venv
 .pyc
 .pycache
+.mypy_cache
+.venv

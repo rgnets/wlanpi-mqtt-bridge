@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.9"
+name = "wlanpi-mqtt-bridge"
+authors = [
+    {name = "Michael Ketchel", email = "michael.ketchel@gmail.com"},
+    {name = "Michael Ketchel", email = "mdk@rgnets.com"},
+]
+maintainers = [
+    {name = "Michael Ketchel", email = "michael.ketchel@gmail.com"},
+    {name = "Michael Ketchel", email = "mdk@rgnets.com"},
+]
+
+version = "1.0.0-0"
+dependencies = [
+    "requests",
+    "schedule",
+    "paho_mqtt",
+]
+
+[project.optional-dependencies]
+dev = [
+    "types-paho-mqtt",
+    "types-requests",
+]
