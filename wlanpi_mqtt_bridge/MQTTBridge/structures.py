@@ -79,3 +79,10 @@ class MQTTResponse:
             sort_keys=True,
             indent=4,
         )
+
+
+class BridgeConfig:
+    def __init__(self, mqtt_server: str, mqtt_port: int, identifier: str):
+        self.mqtt_server = mqtt_server
+        self.mqtt_port = mqtt_port
+        self.identifier = identifier

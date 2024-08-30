@@ -1,1 +1,1 @@
-/install/etc/wlanpi-mqtt-bridge/config.conf /etc/wlanpi-mqtt-bridge
+/install/etc/wlanpi-mqtt-bridge/config.toml /etc/wlanpi-mqtt-bridge

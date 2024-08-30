@@ -54,12 +54,13 @@ class CoreClient:
             return "ERROR"
         return response.json()
 
-    def execute_request(self, method: str, path: str, data):
+    def execute_request(self, method: str, path: str, data, params=None):
         self.logger.debug(
             f"Executing {method.upper()} on path {path} with data: {str(data)}"
         )
         response = requests.request(
             method=method,
+            params=params,
             url=f"{self.base_url}/{path}",
             json=data,
             headers=self.base_headers,
