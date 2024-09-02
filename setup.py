@@ -50,7 +50,7 @@ setup(
     author=about["__author__"],
     author_email=about["__author_email__"],
     url=about["__url__"],
-    python_requires="~=3.9",
+    python_requires=">=3.9",
     license=about["__license__"],
     classifiers=[
         "Natural Language :: English",
@@ -61,8 +61,8 @@ setup(
     ],
     packages=packages,
     project_urls={
-        "Documentation": "https://docs.wlanpi.com",
-        "Source": "https://github.com/wlan-pi/wlanpi-core",
+        # "Documentation": "https://docs.wlanpi.com",
+        "Source": "https://github.com/rgnets/wlanpi-mqtt-bridge",
     },
     include_package_data=True,
     install_requires=requires,
