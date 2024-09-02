@@ -6,9 +6,9 @@ from typing import Optional, Union
 import paho.mqtt.client as mqtt
 import schedule
 
-from wlanpi_mqtt_bridge.MQTTBridge.CoreClient import CoreClient
-from wlanpi_mqtt_bridge.MQTTBridge.structures import MQTTResponse, Route
-from wlanpi_mqtt_bridge.MQTTBridge.Utils import get_full_class_name
+from .CoreClient import CoreClient
+from .structures import MQTTResponse, Route
+from .Utils import get_full_class_name
 
 
 class Bridge:
