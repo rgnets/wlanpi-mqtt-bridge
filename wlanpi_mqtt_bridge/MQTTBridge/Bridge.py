@@ -171,7 +171,7 @@ class Bridge:
         self.logger.info("Publishing periodic data.")
         for endpoint in self.monitored_core_endpoints:
             self.logger.debug(f"Publishing '{endpoint}'")
-            response = self.core_client.get_current_path_data(endpoint)
+            response = self.core_client.execute_request('get', endpoint).json()
             self.mqtt_client.publish(
                 f"{self.my_base_topic}/{endpoint}/current", json.dumps(response)
             )
