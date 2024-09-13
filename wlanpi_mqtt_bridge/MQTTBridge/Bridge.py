@@ -6,6 +6,7 @@ from typing import Optional, Union
 import paho.mqtt.client as mqtt
 import schedule
 
+from . import Utils
 from .CoreClient import CoreClient
 from .structures import MQTTResponse, Route
 from .Utils import get_full_class_name
@@ -32,7 +33,7 @@ class Bridge:
 
         # Endpoints in the core that should be routinely polled and updated
         # This may go away if we can figure out to do event-based updates
-        self.monitored_core_endpoints = ["network_config/ethernet/vlans"]
+        self.monitored_core_endpoints = ["network/ethernet/all/vlan"]
 
         # Topics to monitor for changes
         self.topics_of_interest: list[str] = [
@@ -145,6 +146,12 @@ class Bridge:
             f"{self.my_base_topic}/openapi", json.dumps(openapi_definition), 1, True
         )
 
+        # Publish model data
+        model_base_topic = f"{self.my_base_topic}/model"
+        for name,value in Utils.get_model_info().items():
+            client.publish(f"{model_base_topic}/{name.lower().replace(' ', '_')}", value, 1, True)
+
+
         self.add_routes_from_openapi_definition()
 
         self.logger.info("Subscribing to topics of interest.")
@@ -168,6 +175,12 @@ class Bridge:
             self.mqtt_client.publish(
                 f"{self.my_base_topic}/{endpoint}/current", json.dumps(response)
             )
+        # Publish current ip config
+        self.mqtt_client.publish(
+            f"{self.my_base_topic}/addresses", json.dumps(Utils.get_interface_ip_addr()),
+            1, True
+        )
+
 
     def handle_message(self, client, userdata, msg) -> None:
         """

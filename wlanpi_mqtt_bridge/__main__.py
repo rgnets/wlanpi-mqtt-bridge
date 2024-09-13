@@ -70,7 +70,7 @@ def get_config(filepath) -> BridgeConfig:
         config.read(CONFIG_FILE)
 
     mqtt_server = config.get("MQTT", "server", fallback="<gateway>")
-    mqtt_port = config.getint("MQTT", "port", fallback=1884)
+    mqtt_port = config.getint("MQTT", "port", fallback=1883)
 
     if mqtt_server in ["<gateway>", "", None]:
         mqtt_server = get_default_gateways()["eth0"]
