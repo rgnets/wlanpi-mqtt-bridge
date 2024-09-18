@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from requests.exceptions import JSONDecodeError
 from typing import Optional, Union
 
 import paho.mqtt.client as mqtt
@@ -9,7 +10,7 @@ import schedule
 from . import Utils
 from .CoreClient import CoreClient
 from .structures import MQTTResponse, Route
-from .Utils import get_full_class_name
+from .Utils import get_full_class_name, get_current_unix_timestamp
 
 
 class Bridge:
@@ -33,7 +34,19 @@ class Bridge:
 
         # Endpoints in the core that should be routinely polled and updated
         # This may go away if we can figure out to do event-based updates
-        self.monitored_core_endpoints = ["network/ethernet/all/vlan"]
+        # ['Topic', retain]
+        self.monitored_core_endpoints = [
+            ("api/v1/network/ethernet/all/vlan/all", True),
+            ("api/v1/network/ethernet/all", True),
+            ("api/v1/network/interfaces", True),
+        ]
+
+        # Topics that the bridge itself populates and publishes:
+        # [topic, function to call, retain
+        self.autopublished_topics = [
+            (f"status", lambda : "Connected", True),
+            ("addresses", Utils.get_interface_ip_addr, True)
+        ]
 
         # Topics to monitor for changes
         self.topics_of_interest: list[str] = [
@@ -84,7 +97,7 @@ class Bridge:
         self.mqtt_client.connect(self.mqtt_server, self.mqtt_port, 60)
 
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
-        # self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
+        self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
 
         # Start the MQTT client loop,
         self.mqtt_client.loop_start()
@@ -167,20 +180,42 @@ class Bridge:
         self.publish_periodic_data()
 
     def publish_periodic_data(self) -> None:
+        """Publishes data periodically"""
         # self.__client.publish()
         self.logger.info("Publishing periodic data.")
-        for endpoint in self.monitored_core_endpoints:
-            self.logger.debug(f"Publishing '{endpoint}'")
-            response = self.core_client.execute_request('get', endpoint).json()
-            self.mqtt_client.publish(
-                f"{self.my_base_topic}/{endpoint}/current", json.dumps(response)
-            )
-        # Publish current ip config
-        self.mqtt_client.publish(
-            f"{self.my_base_topic}/addresses", json.dumps(Utils.get_interface_ip_addr()),
-            1, True
-        )
+        for endpoint, retain in self.monitored_core_endpoints:
+            self.logger.debug(f"Publishing monitored topic: '{endpoint}'")
+            try:
 
+                response = self.core_client.execute_request('get', endpoint)
+                is_json = False
+                try:
+                    value = response.json()
+                    is_json = True
+                except JSONDecodeError:
+                        value = response.text
+                self.mqtt_client.publish(
+                    f"{self.my_base_topic}/{endpoint}/_current", json.dumps({'value': value,
+                                                                             'is_json': is_json,
+                                                                             "updated_at": get_current_unix_timestamp()}),
+                1, retain)
+            except Exception as e:
+                self.logger.error(f"Error publishing monitored core endpoint \"{endpoint}\" {e}")
+        # Publish current ip config
+
+        for topic, data_function, retain in self.autopublished_topics:
+            self.logger.debug(f"Auto-Publishing: '{topic}'")
+            try:
+
+                data = data_function()
+                if type(data) not in [str, int, float, bool]:
+                    data = json.dumps(data)
+                self.mqtt_client.publish(
+                    f"{self.my_base_topic}/{topic}", data,
+                    1, retain
+                )
+            except Exception as e:
+                self.logger.error(f"Error auto-publishing topic \"{endpoint}\" {e}")
 
     def handle_message(self, client, userdata, msg) -> None:
         """

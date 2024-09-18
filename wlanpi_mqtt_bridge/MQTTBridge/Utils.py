@@ -1,4 +1,6 @@
 import subprocess
+import datetime
+import time
 from typing import Optional
 
 from wlanpi_mqtt_bridge.MQTTBridge.models.command_result import CommandResult
@@ -61,6 +63,10 @@ def get_interface_ip_addr(interface : Optional[str]=None) -> dict[str, any]:
     if interface is not None and interface.strip() != '':
         cmd.append(interface.strip())
     return run_command(cmd).output_from_json()
+
+def get_current_unix_timestamp():
+    ms = datetime.datetime.now()
+    return time.mktime(ms.timetuple()) * 1000
 
 
 if __name__ == "__main__":
