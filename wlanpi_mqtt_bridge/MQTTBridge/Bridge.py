@@ -51,7 +51,7 @@ class Bridge:
         # [topic, function to call, retain
         self.autopublished_topics = [
             (f"status", lambda : "Connected", True),
-            ("addresses", Utils.get_interface_ip_addr, True)
+            ("addresses", lambda : MQTTResponse(data=Utils.get_interface_ip_addr()), True)
         ]
 
         # Topics to monitor for changes
@@ -194,16 +194,14 @@ class Bridge:
             try:
 
                 response = self.core_client.execute_request('get', endpoint)
-                is_json = False
-                try:
-                    value = response.json()
-                    is_json = True
-                except JSONDecodeError:
-                        value = response.text
                 self.mqtt_client.publish(
-                    f"{self.my_base_topic}/{endpoint}/_current", json.dumps({'value': value,
-                                                                             'is_json': is_json,
-                                                                             "updated_at": get_current_unix_timestamp()}),
+                    f"{self.my_base_topic}/{endpoint}/_current",
+                    MQTTResponse(
+                        data=response.text,
+                        rest_reason=response.reason,
+                        rest_status=response.status_code,
+                    ).to_json()
+                ,
                 1, retain)
             except Exception as e:
                 self.logger.error(f"Error publishing monitored core endpoint \"{endpoint}\" {e}")
@@ -214,7 +212,9 @@ class Bridge:
             try:
 
                 data = data_function()
-                if type(data) not in [str, int, float, bool]:
+                if type(data) is MQTTResponse:
+                    data = data.to_json()
+                elif type(data) not in [str, int, float, bool]:
                     data = json.dumps(data)
                 self.mqtt_client.publish(
                     f"{self.my_base_topic}/{topic}", data,
@@ -277,7 +277,7 @@ class Bridge:
 
         else:
             client.publish(
-                f"{msg.topic}/response",
+                f"{msg.topic}/_response",
                 MQTTResponse(
                     status="bridge_error",
                     errors=[

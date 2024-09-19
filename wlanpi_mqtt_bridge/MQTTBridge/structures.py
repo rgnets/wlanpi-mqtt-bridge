@@ -4,6 +4,8 @@ from typing import Callable, Literal, Optional
 
 from requests import JSONDecodeError
 
+from wlanpi_mqtt_bridge.MQTTBridge.Utils import get_current_unix_timestamp
+
 
 class Route:
     """
@@ -24,7 +26,7 @@ class Route:
         self.logger = logging.getLogger(__name__)
         self.route = route
         self.topic = topic
-        self.response_topic = response_topic or f"{topic}/response"
+        self.response_topic = response_topic or f"{topic}/_response"
         self.method = method
         self.callback = callback or self.default_callback
 
@@ -76,16 +78,22 @@ class MQTTResponse:
         self.data = data
         self.rest_status = rest_status
         self.rest_reason = rest_reason
+        self.published_at = get_current_unix_timestamp()
+        self.is_json = False
 
         # Try to parse data into json, but don't fret if we can't.
         if type(data) in ["str", "bytes", "bytearray"]:
             try:
                 self.data = json.loads(data)
+                self.is_json = True
             except JSONDecodeError as e:
                 self.logger.debug(
                     f"Tried to decode data as JSON but it was not valid: {str(e)}"
                 )
                 self.logger.debug(data)
+        else:
+            # We're going to assume in this case it's some kind of JSON-compatible structure.
+            self.is_json = True
 
     def to_json(self) -> str:
         return json.dumps(
