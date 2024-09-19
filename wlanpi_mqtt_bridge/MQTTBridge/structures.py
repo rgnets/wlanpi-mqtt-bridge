@@ -79,13 +79,13 @@ class MQTTResponse:
         self.rest_status = rest_status
         self.rest_reason = rest_reason
         self.published_at = get_current_unix_timestamp()
-        self.is_json = False
+        self.is_hydrated_object = False
 
         # Try to parse data into json, but don't fret if we can't.
-        if type(data) in ["str", "bytes", "bytearray"]:
+        if type(data) in [str, bytes, bytearray]:
             try:
                 self.data = json.loads(data)
-                self.is_json = True
+                self.is_hydrated_object = True
             except JSONDecodeError as e:
                 self.logger.debug(
                     f"Tried to decode data as JSON but it was not valid: {str(e)}"
@@ -93,14 +93,14 @@ class MQTTResponse:
                 self.logger.debug(data)
         else:
             # We're going to assume in this case it's some kind of JSON-compatible structure.
-            self.is_json = True
+            self.is_hydrated_object = True
 
     def to_json(self) -> str:
         return json.dumps(
             {i: self.__dict__[i] for i in self.__dict__ if i not in ["logger"]},
             default=lambda o: o.__dict__,
-            sort_keys=True,
-            indent=4,
+            # sort_keys=True,
+            # indent=4,
         )
 
 
