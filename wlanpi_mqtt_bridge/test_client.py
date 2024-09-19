@@ -10,7 +10,7 @@ from typing import Optional, Union
 import paho.mqtt.client as mqtt
 
 from wlanpi_mqtt_bridge.MQTTBridge.CoreClient import CoreClient
-from wlanpi_mqtt_bridge.MQTTBridge.RouteMatcher import TopicMatcher
+from wlanpi_mqtt_bridge.MQTTBridge.TopicMatcher import TopicMatcher
 from wlanpi_mqtt_bridge.MQTTBridge.structures import Route
 from wlanpi_mqtt_bridge.utils import get_config
 

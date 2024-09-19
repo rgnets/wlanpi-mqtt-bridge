@@ -10,7 +10,7 @@ import schedule
 
 from . import Utils
 from .CoreClient import CoreClient
-from .RouteMatcher import TopicMatcher
+from .TopicMatcher import TopicMatcher
 from .structures import MQTTResponse, Route
 from .Utils import get_full_class_name, get_current_unix_timestamp
 
@@ -28,7 +28,7 @@ class Bridge:
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
 
-        self.route_matcher: TopicMatcher = TopicMatcher()
+        self.topic_matcher: TopicMatcher = TopicMatcher()
 
         self.mqtt_server = mqtt_server
         self.mqtt_port = mqtt_port
@@ -237,7 +237,7 @@ class Bridge:
         )
         self.logger.debug(f"User Data: {str(userdata)}")
 
-        route = self.route_matcher.get_route_from_topic(msg.topic)
+        route = self.topic_matcher.get_route_from_topic(msg.topic)
         if route:
             try:
                 payload = (
@@ -335,7 +335,7 @@ class Bridge:
         sub_topic = re.sub(r'{.+}', '+', route.topic)
         if self.add_subscription(sub_topic):
             self.bridge_routes[route.topic] = route
-            self.route_matcher.add_route(route)
+            self.topic_matcher.add_route(route)
             return True
         return False
 
