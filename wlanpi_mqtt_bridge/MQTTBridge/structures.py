@@ -35,6 +35,21 @@ class Route:
             "define one that does something."
         )
 
+    def copy_with(self, **kwargs) -> "Route":
+        new_route = Route(
+            route=self.route,
+            topic=self.topic,
+            response_topic=self.response_topic,
+            callback=self.callback,
+            method=self.method,
+        )
+        for key,value in kwargs.items():
+            if hasattr(new_route, key):
+                setattr(new_route, key, value)
+        return new_route
+
+
+
 
 class MQTTResponse:
     """

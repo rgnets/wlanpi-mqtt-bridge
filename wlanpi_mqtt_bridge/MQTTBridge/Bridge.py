@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from requests.exceptions import JSONDecodeError
 from typing import Optional, Union
@@ -9,6 +10,7 @@ import schedule
 
 from . import Utils
 from .CoreClient import CoreClient
+from .RouteMatcher import TopicMatcher
 from .structures import MQTTResponse, Route
 from .Utils import get_full_class_name, get_current_unix_timestamp
 
@@ -25,9 +27,13 @@ class Bridge:
     ):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
+
+        self.route_matcher: TopicMatcher = TopicMatcher()
+
         self.mqtt_server = mqtt_server
         self.mqtt_port = mqtt_port
         self.core_base_url = wlan_pi_core_base_url
+
         self.my_base_topic = f"wlan-pi/{identifier}"
         self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.core_client = CoreClient(base_url=self.core_base_url)
@@ -231,9 +237,8 @@ class Bridge:
         )
         self.logger.debug(f"User Data: {str(userdata)}")
 
-        if msg.topic in self.bridge_routes.keys():
-            route = self.bridge_routes[msg.topic]
-
+        route = self.route_matcher.get_route_from_topic(msg.topic)
+        if route:
             try:
                 payload = (
                     json.loads(msg.payload)
@@ -286,7 +291,7 @@ class Bridge:
             self.logger.warning(f"No route found for topic '{msg.topic}'")
 
     def add_routes_from_openapi_definition(
-        self, openapi_definition: Optional[dict] = None
+            self, openapi_definition: Optional[dict] = None
     ) -> None:
         """
         Add routes to the bridge based on the open api definition.
@@ -310,15 +315,14 @@ class Bridge:
                 self.add_route(my_route)
                 self.logger.debug("New OAPI route: ", my_route.__dict__)
                 # Add route to respond to global topics, but respond on our own.
-                self.add_route(
-                    Route(
-                        route=uri,
-                        topic=f"{self.__global_base_topic}{topic}",
-                        response_topic=my_route.response_topic,
-                        method=method,
-                        callback=self.default_callback,
-                    )
+                global_route = Route(
+                    route=uri,
+                    topic=f"{self.__global_base_topic}{topic}",
+                    response_topic=my_route.response_topic,
+                    method=method,
+                    callback=self.default_callback,
                 )
+                self.add_route(global_route)
         self.logger.debug("Routes from openapi definition added")
         self.logger.debug(self.bridge_routes)
 
@@ -328,8 +332,10 @@ class Bridge:
         :param route: A populated Route object.
         :return: Whether the Route was added to the lookup table.
         """
-        if self.add_subscription(route.topic):
+        sub_topic = re.sub(r'{.+}', '+', route.topic)
+        if self.add_subscription(sub_topic):
             self.bridge_routes[route.topic] = route
+            self.route_matcher.add_route(route)
             return True
         return False
 
