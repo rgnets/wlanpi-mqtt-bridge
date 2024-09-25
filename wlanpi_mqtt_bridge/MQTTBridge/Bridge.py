@@ -64,9 +64,6 @@ class Bridge:
         # on exit.
         self.scheduled_jobs: list[schedule.Job] = []
 
-        # Stores the route mappings between MQTT topics and REST endpoints
-        self.bridge_routes: dict[str, Route] = dict()
-
     @staticmethod
     def additional_supported_endpoints():
         """
@@ -324,20 +321,19 @@ class Bridge:
                 )
                 self.add_route(global_route)
         self.logger.debug("Routes from openapi definition added")
-        self.logger.debug(self.bridge_routes)
 
-    def add_route(self, route: Route) -> bool:
+    def add_route(self, route: Route):
         """
         Adds a route to the route lookup table
         :param route: A populated Route object.
         :return: Whether the Route was added to the lookup table.
         """
-        sub_topic = re.sub(r'{.+}', '+', route.topic)
-        if self.add_subscription(sub_topic):
-            self.bridge_routes[route.topic] = route
-            self.topic_matcher.add_route(route)
-            return True
-        return False
+
+        new_routes = self.topic_matcher.add_route(route)
+        for route_key, [route_path, route_node] in new_routes.items():
+                new_topic = route_node.get_wildcard_topic()
+                self.add_subscription(new_topic)
+        return new_routes
 
     def default_callback(self, client, topic, message: Union[str, bytes]) -> None:
         """

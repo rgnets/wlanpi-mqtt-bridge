@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Union
+import re
+from typing import Optional, Union, Dict, Tuple, List
 
 from wlanpi_mqtt_bridge.MQTTBridge.structures import Route
 
@@ -41,25 +42,34 @@ class TopicNode:
         # Update logger with the path we should now have:
 
 
-    def add_child(self, name, rest: Optional[TopicNodePath], route: Route) -> None:
+    def add_child(self, name, rest: Optional[TopicNodePath], route: Route) -> dict[str, tuple[list[str], 'TopicNode']]:
+        routes_to_return = {}
+
         # Catch dynamic routes
         if name.startswith("{") and name.endswith("}"):
             found = False
             for node in self.dynamic_children:
                 if node.name == name:
                     if rest is not None:
-                        node.add_child(rest[0],rest[1:] if len(rest)>1 else None, route=route)
+                        routes_to_return.update(
+                            node.add_child(rest[0],rest[1:] if len(rest)>1 else None, route=route)
+                        )
                     found = True
             if not found:
-                self.dynamic_children.append(TopicNode(name, rest, route=route, parent=self, dynamic=True))
+                new_node = TopicNode(name, rest, route=route, parent=self, dynamic=True)
+                self.dynamic_children.append(new_node)
+                routes_to_return.update(new_node.known_routes)
         # Handle static routes
         else:
             if name in self.static_children:
                 if  rest is not None:
-                    self.static_children[name].add_child(rest[0], rest[1:] if len(rest) > 1 else None, route=route)
+                    routes_to_return.update(
+                        self.static_children[name].add_child(rest[0], rest[1:] if len(rest) > 1 else None, route=route)
+                    )
             else:
                 self.static_children[name] = TopicNode(name, rest, route=route, parent=self)
-
+                routes_to_return.update(self.static_children[name].known_routes)
+        return routes_to_return
 
     def get_next_matching_node(self, path: TopicNodePath, replacements: Optional[TopicReplacements]=None) -> tuple['TopicNode', TopicReplacements]:
         # Start tracking replacements
@@ -130,6 +140,9 @@ class TopicNode:
             self.parent.register_route_path(path, node)
         self.known_routes['/'.join(path)] = (path, node)
 
+    def get_wildcard_topic(self):
+        path = self.get_my_route_path()
+        return '/'.join([ re.sub(r'{.+?}', '+', el) for el in path ])
 
 class TopicMatcher(TopicNode):
 
@@ -139,9 +152,9 @@ class TopicMatcher(TopicNode):
         self.logger.setLevel(logging.DEBUG)
         self.logger.info("TopicMatcher initialized")
 
-    def add_route(self, route: Route):
+    def add_route(self, route: Route) -> dict[str, tuple[list[str], 'TopicNode']]:
         next_part, *rest = route.topic.lstrip('/').split('/')
-        self.add_child(next_part, rest, route=route)
+        return self.add_child(next_part, rest, route=route)
 
 
     def get_route_from_topic(self, topic: str) -> Union[Route, None]:
