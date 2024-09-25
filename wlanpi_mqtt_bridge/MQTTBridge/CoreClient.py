@@ -1,7 +1,9 @@
 import logging
+import time
 from typing import Optional, Any
 
 import requests
+from requests import JSONDecodeError
 
 
 class CoreClient:
@@ -23,7 +25,13 @@ class CoreClient:
 
     def get_openapi_definition(self) -> dict:
         self.logger.debug(f"Fetching OpenAPI definition from {self.openapi_def_path}")
-        return requests.get(url=self.openapi_def_path, headers=self.base_headers).json()
+
+        while True:
+            try:
+                return requests.get(url=self.openapi_def_path, headers=self.base_headers).json()
+            except JSONDecodeError:
+                self.logger.warning(f"Failed to fetch OpenAPI definition from {self.openapi_def_path}, waiting 5 seconds.")
+                time.sleep(5)
 
     def execute_request(self, method: str, path: str, data:Optional[Any]=None, params:Optional[Any]=None):
         self.logger.debug(

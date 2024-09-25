@@ -97,7 +97,14 @@ class Bridge:
         self.logger.info(
             f"Connecting to MQTT server at {self.mqtt_server}:{self.mqtt_port}"
         )
-        self.mqtt_client.connect(self.mqtt_server, self.mqtt_port, 60)
+
+        while True:
+            try:
+                self.mqtt_client.connect(self.mqtt_server, self.mqtt_port, 60)
+                break
+            except ConnectionRefusedError:
+                self.logger.error("Connection to MQTT server refused. Retrying in 10 seconds")
+                time.sleep(10)
 
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
         self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
