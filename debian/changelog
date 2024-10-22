@@ -1,8 +1,9 @@
-wlanpi-mqtt-bridge (1.0.0-1+deb12u3) UNRELEASED; urgency=medium
+wlanpi-mqtt-bridge (1.0.0-1+deb12u4) UNRELEASED; urgency=medium
 
   * Update build rules
+  * Update build rules
 
- -- Michael Ketchel <michael.ketchel@gmail.com>  Tue, 22 Oct 2024 05:34:53 -0400
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Tue, 22 Oct 2024 05:39:15 -0400
 
 wlanpi-mqtt-bridge (1.0.0-1+deb12u2) unstable; urgency=medium
 

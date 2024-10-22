@@ -35,7 +35,7 @@ override_dh_virtualenv:
 		--install-suffix "wlanpi-mqtt-bridge" \
 		--builtin-venv \
 		--python ${SNAKE} \
-		--upgrade-pip-to=23.2 \
+		--upgrade-pip-to=24.2 \
 		--preinstall="setuptools==65.5.0" \
 		--preinstall="wheel==0.37.1"
 		--preinstall="mock" \
