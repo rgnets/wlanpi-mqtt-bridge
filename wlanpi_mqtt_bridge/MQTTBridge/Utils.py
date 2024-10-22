@@ -1,7 +1,7 @@
-import subprocess
 import datetime
+import subprocess
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from wlanpi_mqtt_bridge.MQTTBridge.models.command_result import CommandResult
 from wlanpi_mqtt_bridge.MQTTBridge.models.runcommand_error import RunCommandError
@@ -46,23 +46,27 @@ def get_default_gateways() -> dict[str, str]:
             gateways[res[1].strip()] = res[0].strip()
     return gateways
 
+
 def get_model_info() -> dict[str, str]:
     model_info = run_command(["wlanpi-model"]).output.split("\n")
-    model_info = [a.split(':', 1) for a in model_info if a.strip() != '']
+    split_model_info = [a.split(":", 1) for a in model_info if a.strip() != ""]
     model_dict = {}
-    for a,b in model_info:
+    for a, b in split_model_info:
         model_dict[a.strip()] = b.strip()
     return model_dict
 
-def get_uptime() -> dict[str, str]:
-    cmd="jc uptime"
+
+def get_uptime() -> dict[str, Any]:
+    cmd = "jc uptime"
     return run_command(cmd.split(" ")).output_from_json()
 
-def get_interface_ip_addr(interface : Optional[str]=None) -> dict[str, any]:
-    cmd: list[str]= "ip -j addr show".split(" ")
-    if interface is not None and interface.strip() != '':
+
+def get_interface_ip_addr(interface: Optional[str] = None) -> dict[str, Any]:
+    cmd: list[str] = "ip -j addr show".split(" ")
+    if interface is not None and interface.strip() != "":
         cmd.append(interface.strip())
     return run_command(cmd).output_from_json()
+
 
 def get_current_unix_timestamp():
     ms = datetime.datetime.now()

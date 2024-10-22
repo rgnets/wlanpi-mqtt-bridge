@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Callable, Literal, Optional
+from ssl import VerifyMode
+from typing import Any, Callable, Literal, Optional
 
 from requests import JSONDecodeError
 
@@ -45,12 +46,10 @@ class Route:
             callback=self.callback,
             method=self.method,
         )
-        for key,value in kwargs.items():
+        for key, value in kwargs.items():
             if hasattr(new_route, key):
                 setattr(new_route, key, value)
         return new_route
-
-
 
 
 class MQTTResponse:
@@ -92,7 +91,8 @@ class MQTTResponse:
                 )
                 self.logger.debug(data)
         else:
-            # We're going to assume in this case it's some kind of JSON-compatible structure.
+            # We're going to assume in this case it's some kind of
+            # JSON-compatible structure.
             self.is_hydrated_object = True
 
     def to_json(self) -> str:
@@ -104,8 +104,35 @@ class MQTTResponse:
         )
 
 
+class TLSConfig:
+    def __init__(
+        self,
+        ca_certs: Optional[str] = None,
+        certfile: Optional[str] = None,
+        keyfile: Optional[str] = None,
+        cert_reqs: Optional[VerifyMode] = None,
+        tls_version: Optional[Any] = None,
+        ciphers: Optional[str] = None,
+        keyfile_password: Optional[Any] = None,
+    ):
+        self.ca_certs = ca_certs
+        self.certfile = certfile
+        self.keyfile = keyfile
+        self.cert_reqs = cert_reqs
+        self.tls_version = tls_version
+        self.ciphers = ciphers
+        self.keyfile_password = keyfile_password
+
+
 class BridgeConfig:
-    def __init__(self, mqtt_server: str, mqtt_port: int, identifier: str):
+    def __init__(
+        self,
+        mqtt_server: str,
+        mqtt_port: int,
+        identifier: str,
+        tls_config: Optional[TLSConfig] = None,
+    ):
         self.mqtt_server = mqtt_server
         self.mqtt_port = mqtt_port
         self.identifier = identifier
+        self.tls_config = tls_config

@@ -23,7 +23,9 @@ dependencies = [
     "requests",
     "schedule",
     "paho_mqtt",
-    "pydantic-settings"
+    "pydantic-settings",
+    "toml",
+    "systemd-python",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +34,7 @@ dev = [
     "black",
     "types-paho-mqtt",
     "types-requests",
+    "types-toml"
 ]
 test = [
     "black",

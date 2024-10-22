@@ -3,16 +3,14 @@ import argparse
 import logging
 import os
 import platform
-import sys
 import signal
-
+import sys
 from types import FrameType
 from typing import Optional, Union
 
 # app imports
-from .__version__ import __version__, __description__
+from .__version__ import __description__, __version__
 from .MQTTBridge.Bridge import Bridge
-
 from .utils import get_config
 
 logger = logging.getLogger(__name__)
@@ -21,6 +19,7 @@ logging.basicConfig(encoding="utf-8", level=logging.INFO)
 
 CONFIG_DIR = "/etc/wlanpi-mqtt-bridge"
 CONFIG_FILE = "/etc/wlanpi-mqtt-bridge/config.toml"
+
 
 def setup_parser() -> argparse.ArgumentParser:
     """Set default values and handle arg parser"""
@@ -33,27 +32,22 @@ def setup_parser() -> argparse.ArgumentParser:
         "--debug", "-d", dest="debug", action="store_true", default=False
     )
 
-    parser.add_argument(
-        "--server", "-s", dest="server", action="store", default=None
-    )
+    parser.add_argument("--server", "-s", dest="server", action="store", default=None)
 
-    parser.add_argument(
-        "--port", "-p", dest="port", action="store", default=None
-    )
-    parser.add_argument(
-        "--identifier", dest="identifier", action="store", default=None
-    )
+    parser.add_argument("--port", "-p", dest="port", action="store", default=None)
+    parser.add_argument("--identifier", dest="identifier", action="store", default=None)
 
     parser.add_argument(
         "--version", "-V", "-v", action="version", version=f"{__version__}"
     )
     return parser
 
+
 def main():
     parser = setup_parser()
     args = parser.parse_args()
-
     logging.getLogger().setLevel(logging.DEBUG if args.debug else logging.INFO)
+    logging.info("Loading configuration")
 
     config = get_config(CONFIG_FILE)
 
@@ -61,6 +55,8 @@ def main():
         config.server = args.server
     if args.port is not None:
         config.port = args.port
+
+    logging.info(f"Configuring bridge with {config.__dict__}")
     bridge = Bridge(**config.__dict__)
 
     # noinspection PyUnusedLocal
@@ -77,7 +73,7 @@ def main():
             bridge.stop()
 
     signal.signal(signal.SIGINT, signal_handler)
-    bridge.run()
+    return bridge.go()
 
 
 def init() -> None:
@@ -86,12 +82,14 @@ def init() -> None:
     # hard set no support for python < v3.9
     if sys.version_info < (3, 9):
         sys.exit(
-            "{0} requires Python version 3.9 or higher...\nyou are trying to run with Python version {1}...\nexiting...".format(
-                os.path.basename(__file__), platform.python_version()
-            )
+            "{0} requires Python version 3.9 or higher...\n"
+            "you are trying to run with Python version {1}...\n"
+            "exiting...".format(os.path.basename(__file__), platform.python_version())
         )
 
     if __name__ == "__main__":
-        sys.exit(main())
+        exit_code = main()
+        sys.exit(exit_code)
+
 
 init()

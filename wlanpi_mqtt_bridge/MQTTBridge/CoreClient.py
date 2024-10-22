@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, Any
+from typing import Any, Optional
 
 import requests
 from requests import JSONDecodeError
@@ -28,12 +28,23 @@ class CoreClient:
 
         while True:
             try:
-                return requests.get(url=self.openapi_def_path, headers=self.base_headers).json()
+                return requests.get(
+                    url=self.openapi_def_path, headers=self.base_headers
+                ).json()
             except JSONDecodeError:
-                self.logger.warning(f"Failed to fetch OpenAPI definition from {self.openapi_def_path}, waiting 5 seconds.")
+                self.logger.warning(
+                    f"Failed to fetch OpenAPI definition from {self.openapi_def_path}"
+                    ", waiting 5 seconds."
+                )
                 time.sleep(5)
 
-    def execute_request(self, method: str, path: str, data:Optional[Any]=None, params:Optional[Any]=None):
+    def execute_request(
+        self,
+        method: str,
+        path: str,
+        data: Optional[Any] = None,
+        params: Optional[Any] = None,
+    ):
         self.logger.debug(
             f"Executing {method.upper()} on path {path} with data: {str(data)}"
         )
@@ -48,22 +59,25 @@ class CoreClient:
 
     def get_current_path_data(self, path):
         self.logger.debug(f"Getting current path data for {path}")
-        response =  self.execute_request('get', path)
+        response = self.execute_request("get", path)
         if response.status_code != 200:
             self.logger.error("Unable to get vlan data")
             return "ERROR"
         return response.json()
 
     def create_on_path(self, path, data):
-        """ Probably not actually going to use this."""
+        """Probably not actually going to use this."""
         self.logger.info(f"Creating data on path {path}")
         target_url = f"{self.api_url}/{path}/create"
         self.logger.debug(f"Creating with URL {target_url} and data {data}")
-        response = self.execute_request('post', path, data=data,)
+        response = self.execute_request(
+            "post",
+            path,
+            data=data,
+        )
         if response.status_code != 200:
             self.logger.error("Unable to successfully relay data")
             self.logger.error(f"Code: {response.status_code} Reason: {response.reason}")
             self.logger.error(response.raw)
             return "ERROR"
         return response.json()
-

@@ -1,18 +1,18 @@
 import json
 import logging
-import re
+import socket
 import time
-from requests.exceptions import JSONDecodeError
 from typing import Optional, Union
 
 import paho.mqtt.client as mqtt
 import schedule
+import systemd.daemon
 
 from . import Utils
 from .CoreClient import CoreClient
+from .structures import MQTTResponse, Route, TLSConfig
 from .TopicMatcher import TopicMatcher
-from .structures import MQTTResponse, Route
-from .Utils import get_full_class_name, get_current_unix_timestamp
+from .Utils import get_full_class_name
 
 
 class Bridge:
@@ -22,6 +22,7 @@ class Bridge:
         self,
         mqtt_server: str = "wi.fi",
         mqtt_port: int = 1883,
+        tls_config: Optional[TLSConfig] = None,
         wlan_pi_core_base_url: str = "http://127.0.0.1:31415",
         identifier: Optional[str] = None,
     ):
@@ -32,10 +33,13 @@ class Bridge:
 
         self.mqtt_server = mqtt_server
         self.mqtt_port = mqtt_port
+        self.tls_config = tls_config
         self.core_base_url = wlan_pi_core_base_url
 
         self.my_base_topic = f"wlan-pi/{identifier}"
         self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        if self.tls_config:
+            self.mqtt_client.tls_set(**self.tls_config.__dict__)
         self.core_client = CoreClient(base_url=self.core_base_url)
 
         # Endpoints in the core that should be routinely polled and updated
@@ -50,8 +54,12 @@ class Bridge:
         # Topics that the bridge itself populates and publishes:
         # [topic, function to call, retain
         self.autopublished_topics = [
-            (f"status", lambda : "Connected", True),
-            ("addresses", lambda : MQTTResponse(data=Utils.get_interface_ip_addr()), True)
+            ("status", lambda: "Connected", True),
+            (
+                "addresses",
+                lambda: MQTTResponse(data=Utils.get_interface_ip_addr()),
+                True,
+            ),
         ]
 
         # Topics to monitor for changes
@@ -63,6 +71,7 @@ class Bridge:
         # Holds scheduled jobs from `scheduler` so we can clean them up
         # on exit.
         self.scheduled_jobs: list[schedule.Job] = []
+        self.run = False
 
     @staticmethod
     def additional_supported_endpoints():
@@ -73,13 +82,15 @@ class Bridge:
         """
         return []
 
-    def run(self):
+    def go(self):
         """
         Run the bridge. This calls the Paho client's `.loop_forever()` method,
         which blocks until the Paho client is disconnected.
         :return:
         """
         self.logger.info("Starting MQTTBridge")
+        self.run = True
+        systemd.daemon.notify("READY=1")
 
         def on_connect(client, userdata, flags, reason_code, properties) -> None:
             return self.handle_connect(client, userdata, flags, reason_code, properties)
@@ -103,16 +114,25 @@ class Bridge:
                 self.mqtt_client.connect(self.mqtt_server, self.mqtt_port, 60)
                 break
             except ConnectionRefusedError:
-                self.logger.error("Connection to MQTT server refused. Retrying in 10 seconds")
+                self.logger.error(
+                    "Connection to MQTT server refused. Retrying in 10 seconds"
+                )
+                time.sleep(10)
+            except socket.timeout:
+                self.logger.error(
+                    "Connection to MQTT server timed out. Retrying in 10 seconds"
+                )
                 time.sleep(10)
 
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
-        self.scheduled_jobs.append(schedule.every(10).seconds.do(self.publish_periodic_data))
+        self.scheduled_jobs.append(
+            schedule.every(10).seconds.do(self.publish_periodic_data)
+        )
 
         # Start the MQTT client loop,
         self.mqtt_client.loop_start()
 
-        while True:
+        while self.run:
             schedule.run_pending()
             time.sleep(1)
 
@@ -122,6 +142,7 @@ class Bridge:
         :return:
         """
         self.logger.info("Stopping MQTTBridge")
+        self.run = False
         self.mqtt_client.publish(
             f"{self.my_base_topic}/status", "Disconnected", 1, True
         )
@@ -171,9 +192,10 @@ class Bridge:
 
         # Publish model data
         model_base_topic = f"{self.my_base_topic}/model"
-        for name,value in Utils.get_model_info().items():
-            client.publish(f"{model_base_topic}/{name.lower().replace(' ', '_')}", value, 1, True)
-
+        for name, value in Utils.get_model_info().items():
+            client.publish(
+                f"{model_base_topic}/{name.lower().replace(' ', '_')}", value, 1, True
+            )
 
         self.add_routes_from_openapi_definition()
 
@@ -197,18 +219,21 @@ class Bridge:
             self.logger.debug(f"Publishing monitored topic: '{endpoint}'")
             try:
 
-                response = self.core_client.execute_request('get', endpoint)
+                response = self.core_client.execute_request("get", endpoint)
                 self.mqtt_client.publish(
                     f"{self.my_base_topic}/{endpoint}/_current",
                     MQTTResponse(
                         data=response.text,
                         rest_reason=response.reason,
                         rest_status=response.status_code,
-                    ).to_json()
-                ,
-                1, retain)
+                    ).to_json(),
+                    1,
+                    retain,
+                )
             except Exception as e:
-                self.logger.error(f"Error publishing monitored core endpoint \"{endpoint}\" {e}")
+                self.logger.error(
+                    f'Error publishing monitored core endpoint "{endpoint}" {e}'
+                )
         # Publish current ip config
 
         for topic, data_function, retain in self.autopublished_topics:
@@ -216,16 +241,16 @@ class Bridge:
             try:
 
                 data = data_function()
+                converted_data: Union[str, float, None] = None
                 if type(data) is MQTTResponse:
-                    data = data.to_json()
+                    converted_data = data.to_json()
                 elif type(data) not in [str, int, float, bool]:
-                    data = json.dumps(data)
+                    converted_data = json.dumps(data)
                 self.mqtt_client.publish(
-                    f"{self.my_base_topic}/{topic}", data,
-                    1, retain
+                    f"{self.my_base_topic}/{topic}", converted_data, 1, retain
                 )
             except Exception as e:
-                self.logger.error(f"Error auto-publishing topic \"{endpoint}\" {e}")
+                self.logger.error(f'Error auto-publishing topic "{endpoint}" {e}')
 
     def handle_message(self, client, userdata, msg) -> None:
         """
@@ -295,7 +320,7 @@ class Bridge:
             self.logger.warning(f"No route found for topic '{msg.topic}'")
 
     def add_routes_from_openapi_definition(
-            self, openapi_definition: Optional[dict] = None
+        self, openapi_definition: Optional[dict] = None
     ) -> None:
         """
         Add routes to the bridge based on the open api definition.
@@ -338,8 +363,8 @@ class Bridge:
 
         new_routes = self.topic_matcher.add_route(route)
         for route_key, [route_path, route_node] in new_routes.items():
-                new_topic = route_node.get_wildcard_topic()
-                self.add_subscription(new_topic)
+            new_topic = route_node.get_wildcard_topic()
+            self.add_subscription(new_topic)
         return new_routes
 
     def default_callback(self, client, topic, message: Union[str, bytes]) -> None:

@@ -1,17 +1,15 @@
 import argparse
-import json
 import logging
 import signal
 import sys
-import time
 from types import FrameType
 from typing import Optional, Union
 
 import paho.mqtt.client as mqtt
 
 from wlanpi_mqtt_bridge.MQTTBridge.CoreClient import CoreClient
-from wlanpi_mqtt_bridge.MQTTBridge.TopicMatcher import TopicMatcher
 from wlanpi_mqtt_bridge.MQTTBridge.structures import Route
+from wlanpi_mqtt_bridge.MQTTBridge.TopicMatcher import TopicMatcher
 from wlanpi_mqtt_bridge.utils import get_config
 
 logger = logging.getLogger(__name__)
@@ -21,22 +19,18 @@ logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
 CONFIG_DIR = "/etc/wlanpi-mqtt-bridge"
 CONFIG_FILE = "/etc/wlanpi-mqtt-bridge/config.toml"
 
+
 def setup_parser() -> argparse.ArgumentParser:
     """Set default values and handle arg parser"""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=f"An overbuilt test client for wlanpi mqtt bridge",
+        description="An overbuilt test client for wlanpi mqtt bridge",
     )
-    parser.add_argument(
-        "--server", "-s", dest="server", action="store", default=None
-    )
-    parser.add_argument(
-        "--port", "-p", dest="port", action="store", default=None
-    )
-    parser.add_argument(
-        "--identifier", dest="identifier", action="store", default=None
-    )
+    parser.add_argument("--server", "-s", dest="server", action="store", default=None)
+    parser.add_argument("--port", "-p", dest="port", action="store", default=None)
+    parser.add_argument("--identifier", dest="identifier", action="store", default=None)
     return parser
+
 
 class TestClient:
     __global_base_topic = "wlan-pi/all"
@@ -48,7 +42,7 @@ class TestClient:
         wlan_pi_core_base_url: str = "http://127.0.0.1:31415",
         identifier: Optional[str] = None,
     ):
-        self.route_matcher :TopicMatcher = TopicMatcher()
+        self.route_matcher: TopicMatcher = TopicMatcher()
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
         self.mqtt_server = mqtt_server
@@ -67,13 +61,12 @@ class TestClient:
         # Stores the route mappings between MQTT topics and REST endpoints
         self.bridge_routes: dict[str, Route] = dict()
 
-    def __enter__(self) -> 'TestClient':
+    def __enter__(self) -> "TestClient":
         self.run()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.stop()
-
 
     def run(self):
         """
@@ -92,7 +85,9 @@ class TestClient:
             return self.handle_message(client, userdata, msg)
 
         self.mqtt_client.on_message = on_message
-        self.logger.info(f"Connecting to MQTT server at {self.mqtt_server}:{self.mqtt_port}")
+        self.logger.info(
+            f"Connecting to MQTT server at {self.mqtt_server}:{self.mqtt_port}"
+        )
         self.mqtt_client.connect(self.mqtt_server, self.mqtt_port, 60)
 
         # Start the MQTT client loop,
@@ -161,8 +156,6 @@ class TestClient:
         )
         self.logger.debug(f"User Data: {str(userdata)}")
 
-
-
     def add_routes_from_openapi_definition(
         self, openapi_definition: Optional[dict] = None
     ) -> None:
@@ -190,12 +183,12 @@ class TestClient:
                 self.logger.debug("New OAPI route: ", my_route.__dict__)
                 # Add route to respond to global topics, but respond on our own.
                 global_route = Route(
-                        route=uri,
-                        topic=f"{self.__global_base_topic}{topic}",
-                        response_topic=my_route.response_topic,
-                        method=method,
-                        callback=self.default_callback,
-                    )
+                    route=uri,
+                    topic=f"{self.__global_base_topic}{topic}",
+                    response_topic=my_route.response_topic,
+                    method=method,
+                    callback=self.default_callback,
+                )
                 self.add_route(global_route)
                 self.route_matcher.add_route(global_route)
         self.logger.debug("Routes from openapi definition added")
@@ -224,8 +217,6 @@ class TestClient:
         client.publish(topic, message)
 
 
-
-
 def main():
     parser = setup_parser()
     args = parser.parse_args()
@@ -240,7 +231,7 @@ def main():
     with TestClient(**config.__dict__) as test_client:
         # noinspection PyUnusedLocal
         def signal_handler(
-                sig: Union[int, signal.Signals], frame: Optional[FrameType]
+            sig: Union[int, signal.Signals], frame: Optional[FrameType]
         ) -> None:
             logger.info("Caught signal {}".format(sig))
             if sig == signal.SIGINT:
@@ -253,10 +244,12 @@ def main():
 
         signal.signal(signal.SIGINT, signal_handler)
 
-
-        res = test_client.route_matcher.get_route_from_topic("wlan-pi/dc:a6:32:8e:04:17/api/v1/network/get")
+        res = test_client.route_matcher.get_route_from_topic(
+            "wlan-pi/dc:a6:32:8e:04:17/api/v1/network/get"
+        )
         print(res)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    exit_code = main()
+    sys.exit(exit_code)

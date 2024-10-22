@@ -1,3 +1,18 @@
 [MQTT]
-server = <gateway>
+# The server to connect to
+# <gateway> will cause the bridge to attempt to connect to the gateway device at the default route
+server = "<gateway>"
 port = 1883
+
+# Optional, only takes effect if use_tls is set
+[MQTT_TLS]
+use_tls = false
+#ca_certs =
+#certfile =
+#keyfile =
+# Verification of cert: 0=No verify, 1=Optional, 2=Required
+#cert_reqs =
+# TLS version to use. Leave blank for any version.
+#tls_version =
+#ciphers =
+#keyfile_password =

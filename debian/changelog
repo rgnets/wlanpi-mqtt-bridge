@@ -1,5 +1,11 @@
+wlanpi-mqtt-bridge (1.0.0-1+deb12u1) bookworm; urgency=medium
+
+  * First stable release
+
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Tue, 22 Oct 2024 03:03:34 -0400
+
 wlanpi-mqtt-bridge (1.0.0-1) unstable; urgency=medium
 
   * Initial release
 
- -- Michael Ketchel <michael.ketchel@gmail.com>  Thu, 28 Aug 2024 22:32:00 -0500
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Wed, 28 Aug 2024 22:32:00 -0500
