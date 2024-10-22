@@ -79,10 +79,10 @@ def main():
 def init() -> None:
     """Handle main init"""
 
-    # hard set no support for python < v3.9
-    if sys.version_info < (3, 9):
+    # hard set no support for python < v3.10
+    if sys.version_info < (3, 10):
         sys.exit(
-            "{0} requires Python version 3.9 or higher...\n"
+            "{0} requires Python version 3.10 or higher...\n"
             "you are trying to run with Python version {1}...\n"
             "exiting...".format(os.path.basename(__file__), platform.python_version())
         )

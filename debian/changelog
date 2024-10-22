@@ -1,4 +1,10 @@
-wlanpi-mqtt-bridge (1.0.0-1+deb12u1) bookworm; urgency=medium
+wlanpi-mqtt-bridge (1.0.0-1+deb12u2) unstable; urgency=medium
+
+  * Update python version
+
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Tue, 22 Oct 2024 05:18:31 -0400
+
+wlanpi-mqtt-bridge (1.0.0-1+deb12u1) unstable; urgency=medium
 
   * First stable release
 
