@@ -46,7 +46,7 @@ def get_config(filepath) -> BridgeConfig:
     tls_config = None
     tls_data = config.get("MQTT_TLS", {})
     # logger.debug(tls_data)
-    if tls_data and tls_data.get("use_tls", False) == "true":
+    if tls_data and tls_data.get("use_tls", False) == True:
         tls_config = TLSConfig(
             ca_certs=tls_data.get("ca_certs", None),
             certfile=tls_data.get("certfile", None),

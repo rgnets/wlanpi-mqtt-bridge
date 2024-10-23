@@ -12,16 +12,14 @@ Build-Depends: debhelper (>= 11),
                python3-setuptools,
                python3-distutils,
                python3-venv,
-               python3-toml,
-               python3-systemd,
-               libsystemd-dev,
+               python3-toml
 Standards-Version: 4.6.0
-X-Python3-Version: >= 3.10
+X-Python3-Version: >= 3.9
 Homepage: https://github.com/rgnets/wlanpi-mqtt-bridge
 
 Package: wlanpi-mqtt-bridge
 Architecture: any
-Pre-Depends: dpkg (>= 1.16.1), python3 (>=3.10), python3-distutils, ${misc:Pre-Depends}
+Pre-Depends: dpkg (>= 1.16.1), python3 (>=3.9), python3-distutils, ${misc:Pre-Depends}
 Depends: ${misc:Depends}
 Description: WLAN Pi - optional MQTT-Core bridge
  MQTT Bridge bridges the WLAN Pi core REST API to a configured MQTT server, allowing

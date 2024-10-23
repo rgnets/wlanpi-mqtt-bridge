@@ -6,7 +6,6 @@ from typing import Optional, Union
 
 import paho.mqtt.client as mqtt
 import schedule
-import systemd.daemon
 
 from . import Utils
 from .CoreClient import CoreClient
@@ -72,6 +71,7 @@ class Bridge:
         # on exit.
         self.scheduled_jobs: list[schedule.Job] = []
         self.run = False
+        self.connected = False
 
     @staticmethod
     def additional_supported_endpoints():
@@ -90,7 +90,6 @@ class Bridge:
         """
         self.logger.info("Starting MQTTBridge")
         self.run = True
-        systemd.daemon.notify("READY=1")
 
         def on_connect(client, userdata, flags, reason_code, properties) -> None:
             return self.handle_connect(client, userdata, flags, reason_code, properties)
@@ -101,6 +100,8 @@ class Bridge:
             return self.handle_message(client, userdata, msg)
 
         self.mqtt_client.on_message = on_message
+        self.mqtt_client.on_disconnect = lambda *args : self.handle_disconnect(*args)
+        self.mqtt_client.on_connect_fail = lambda *args : self.handle_connect_fail(*args)
 
         self.mqtt_client.will_set(
             f"{self.my_base_topic}/status", "Abnormally Disconnected", 1, True
@@ -167,6 +168,21 @@ class Bridge:
         else:
             return True
 
+
+    # noinspection PyUnusedLocal
+    def handle_disconnect(self, client, *data) -> None:
+        self.logger.warning(f"Disconnected from MQTT server at {self.mqtt_server}:{self.mqtt_port}!")
+        self.connected = False
+
+        self.logger.warning(f"Disconnect details: {data}")
+
+    # noinspection PyUnusedLocal
+    def handle_connect_fail(self, client, *data) -> None:
+        self.logger.warning(f"Failed to connect to MQTT server at {self.mqtt_server}:{self.mqtt_port}!")
+        self.connected = False
+        self.logger.warning(f"Failure details: {data}")
+
+
     # noinspection PyUnusedLocal
     def handle_connect(self, client, userdata, flags, reason_code, properties) -> None:
         """
@@ -181,7 +197,10 @@ class Bridge:
         :param properties:
         :return:
         """
-        self.logger.info(f"Connected with result code {reason_code}.")
+
+        self.logger.info(
+            f"Connected to MQTT server at {self.mqtt_server}:{self.mqtt_port} with result code {reason_code}."
+        )
 
         # Publish our current API definition to our own topic:
         self.logger.debug("Telling them a little about ourselves.")
@@ -207,13 +226,17 @@ class Bridge:
 
         # Once we're ready, announce that we're connected:
         client.publish(f"{self.my_base_topic}/status", "Connected", 1, True)
-
+        self.connected = True
         # Now do the first round of periodic data:
         self.publish_periodic_data()
 
     def publish_periodic_data(self) -> None:
         """Publishes data periodically"""
         # self.__client.publish()
+        if not self.connected:
+            self.logger.info("Not connected, skipping periodic publish")
+            return
+
         self.logger.info("Publishing periodic data.")
         for endpoint, retain in self.monitored_core_endpoints:
             self.logger.debug(f"Publishing monitored topic: '{endpoint}'")
