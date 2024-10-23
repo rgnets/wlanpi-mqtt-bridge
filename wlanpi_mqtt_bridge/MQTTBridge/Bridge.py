@@ -2,6 +2,7 @@ import json
 import logging
 import socket
 import time
+from ssl import SSLCertVerificationError
 from typing import Optional, Union
 
 import paho.mqtt.client as mqtt
@@ -122,6 +123,11 @@ class Bridge:
             except socket.timeout:
                 self.logger.error(
                     "Connection to MQTT server timed out. Retrying in 10 seconds"
+                )
+                time.sleep(10)
+            except SSLCertVerificationError as e:
+                self.logger.error(
+                    f"SSL Error. Retrying in 10 seconds. Error: {e}"
                 )
                 time.sleep(10)
 
