@@ -4,7 +4,6 @@
 
 [Unit]
 Description=Bridge between the configured MQTT server and WLAN Pi core
-Requires=wlanpi-core.socket
 After=network.target
 StartLimitIntervalSec=30
 StartLimitBurst=4
@@ -17,7 +16,7 @@ WorkingDirectory=/opt/wlanpi-mqtt-bridge/workingdirectory
 ExecStart=/opt/wlanpi-mqtt-bridge/bin/python3 -m wlanpi_mqtt_bridge
 # TODO: Finalize exec method
 
-ExecReload=/bin/kill -s HUP $MAINPID
+#ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
 PrivateTmp=true
