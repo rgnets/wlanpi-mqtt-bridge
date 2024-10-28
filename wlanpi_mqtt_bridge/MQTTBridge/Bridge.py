@@ -270,7 +270,7 @@ class Bridge:
             try:
 
                 data = data_function()
-                converted_data: Union[str, float, None] = None
+                converted_data: Union[str, float, None] = data
                 if type(data) is MQTTResponse:
                     converted_data = data.to_json()
                 elif type(data) not in [str, int, float, bool]:

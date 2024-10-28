@@ -1,3 +1,9 @@
+wlanpi-mqtt-bridge (1.0.0-1+deb12u10) unstable; urgency=medium
+
+  * Fixed broken autopublish code
+
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Mon, 28 Oct 2024 18:13:06 -0400
+
 wlanpi-mqtt-bridge (1.0.0-1+deb12u9) unstable; urgency=medium
 
   * Revised unit file
