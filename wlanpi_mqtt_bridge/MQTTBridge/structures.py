@@ -85,7 +85,7 @@ class MQTTResponse:
             try:
                 self.data = json.loads(data)
                 self.is_hydrated_object = True
-            except JSONDecodeError as e:
+            except (JSONDecodeError,json.decoder.JSONDecodeError) as e:
                 self.logger.debug(
                     f"Tried to decode data as JSON but it was not valid: {str(e)}"
                 )
