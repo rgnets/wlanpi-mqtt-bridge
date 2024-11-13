@@ -1,8 +1,11 @@
-wlanpi-mqtt-bridge (1.0.0-1+deb12u10.2) UNRELEASED; urgency=medium
+wlanpi-mqtt-bridge (1.0.0-1+deb12u10.3) UNRELEASED; urgency=medium
   [ Michael Ketchel ]
   * Api parsing fix
 
- -- Michael Ketchel <michael.ketchel@gmail.com>  Wed, 06 Nov 2024 01:27:28 +0000
+  [ _ ]
+  * move dockerfile and add _bridge_ident secret tag
+
+ -- _ <michael.ketchel@gmail.com>  Wed, 13 Nov 2024 02:29:12 +0000
 
 wlanpi-mqtt-bridge (1.0.0-1+deb12u10) unstable; urgency=medium
 

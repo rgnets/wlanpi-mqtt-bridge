@@ -29,6 +29,9 @@ class Bridge:
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing MQTTBridge")
 
+        self.run = False
+        self.connected = False
+
         self.topic_matcher: TopicMatcher = TopicMatcher()
 
         self.mqtt_server = mqtt_server
@@ -71,8 +74,6 @@ class Bridge:
         # Holds scheduled jobs from `scheduler` so we can clean them up
         # on exit.
         self.scheduled_jobs: list[schedule.Job] = []
-        self.run = False
-        self.connected = False
 
     @staticmethod
     def additional_supported_endpoints():
@@ -208,6 +209,22 @@ class Bridge:
             f"Connected to MQTT server at {self.mqtt_server}:{self.mqtt_port} with result code {reason_code}."
         )
 
+
+        # Get our routes added.
+        self.add_routes_from_openapi_definition()
+
+        self.logger.info("Subscribing to topics of interest.")
+        # Subscribe to the topics we're going to care about.
+        for topic in self.topics_of_interest:
+            self.logger.debug(f"Subscribing to {topic}")
+            client.subscribe(topic)
+
+        # Once we're ready, announce that we're connected:
+        client.publish(f"{self.my_base_topic}/status", "Connected", 1, True)
+
+
+        self.connected = True
+
         # Publish our current API definition to our own topic:
         self.logger.debug("Telling them a little about ourselves.")
         openapi_definition = self.core_client.get_openapi_definition()
@@ -222,17 +239,8 @@ class Bridge:
                 f"{model_base_topic}/{name.lower().replace(' ', '_')}", value, 1, True
             )
 
-        self.add_routes_from_openapi_definition()
 
-        self.logger.info("Subscribing to topics of interest.")
-        # Subscribe to the topics we're going to care about.
-        for topic in self.topics_of_interest:
-            self.logger.debug(f"Subscribing to {topic}")
-            client.subscribe(topic)
 
-        # Once we're ready, announce that we're connected:
-        client.publish(f"{self.my_base_topic}/status", "Connected", 1, True)
-        self.connected = True
         # Now do the first round of periodic data:
         self.publish_periodic_data()
 
@@ -297,12 +305,18 @@ class Bridge:
 
         route = self.topic_matcher.get_route_from_topic(msg.topic)
         if route:
+            bridge_ident = None
             try:
-                payload = (
-                    json.loads(msg.payload)
-                    if msg.payload is not None and msg.payload not in ["", b""]
-                    else None
-                )
+                if msg.payload is not None and msg.payload not in ["", b""]:
+                    payload = json.loads(msg.payload)
+                    bridge_ident = payload.get("_bridge_ident", None)
+                    if bridge_ident is not None:
+                        del payload["_bridge_ident"]
+                    if not payload:
+                        payload = None
+                else:
+                    payload = None
+
                 response = self.core_client.execute_request(
                     method=route.method,
                     path=route.route,
@@ -314,6 +328,7 @@ class Bridge:
                     rest_status=response.status_code,
                     rest_reason=response.reason,
                     data=response.text,
+                    bridge_ident=bridge_ident
                 )
                 route.callback(
                     client=client,
@@ -330,6 +345,7 @@ class Bridge:
                     MQTTResponse(
                         status="bridge_error",
                         errors=[[get_full_class_name(e), str(e)]],
+                        bridge_ident = bridge_ident
                     ).to_json(),
                 )
 

@@ -69,6 +69,7 @@ class MQTTResponse:
         ] = "success",
         rest_status: Optional[int] = None,
         rest_reason: Optional[str] = None,
+        bridge_ident: Optional[Any] = None
     ):
         self.logger = logging.getLogger(__name__)
         if errors is None:
@@ -77,6 +78,7 @@ class MQTTResponse:
         self.data = data
         self.rest_status = rest_status
         self.rest_reason = rest_reason
+        self._bridge_ident = bridge_ident
         self.published_at = get_current_unix_timestamp()
         self.is_hydrated_object = False
 
@@ -96,12 +98,14 @@ class MQTTResponse:
             self.is_hydrated_object = True
 
     def to_json(self) -> str:
-        return json.dumps(
-            {i: self.__dict__[i] for i in self.__dict__ if i not in ["logger"]},
+        res = json.dumps(
+            {i: self.__dict__[i] for i in self.__dict__ if ((i not in ["logger", "_bridge_ident"]) or (i == '_bridge_ident' and self.__dict__[i]))},
             default=lambda o: o.__dict__,
             # sort_keys=True,
             # indent=4,
         )
+        print(res)
+        return res
 
 
 class TLSConfig:
