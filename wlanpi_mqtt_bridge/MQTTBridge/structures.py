@@ -69,7 +69,7 @@ class MQTTResponse:
         ] = "success",
         rest_status: Optional[int] = None,
         rest_reason: Optional[str] = None,
-        bridge_ident: Optional[Any] = None
+        bridge_ident: Optional[Any] = None,
     ):
         self.logger = logging.getLogger(__name__)
         if errors is None:
@@ -87,7 +87,7 @@ class MQTTResponse:
             try:
                 self.data = json.loads(data)
                 self.is_hydrated_object = True
-            except (JSONDecodeError,json.decoder.JSONDecodeError) as e:
+            except (JSONDecodeError, json.decoder.JSONDecodeError) as e:
                 self.logger.debug(
                     f"Tried to decode data as JSON but it was not valid: {str(e)}"
                 )
@@ -99,7 +99,14 @@ class MQTTResponse:
 
     def to_json(self) -> str:
         res = json.dumps(
-            {i: self.__dict__[i] for i in self.__dict__ if ((i not in ["logger", "_bridge_ident"]) or (i == '_bridge_ident' and self.__dict__[i]))},
+            {
+                i: self.__dict__[i]
+                for i in self.__dict__
+                if (
+                    (i not in ["logger", "_bridge_ident"])
+                    or (i == "_bridge_ident" and self.__dict__[i])
+                )
+            },
             default=lambda o: o.__dict__,
             # sort_keys=True,
             # indent=4,
