@@ -8,8 +8,10 @@
 #                        |_|                          |_|                                  |___/
 
 __title__ = "wlanpi_mqtt_bridge"
-__description__ = ("MQTT Bridge bridges the WLAN Pi core REST API to a configured MQTT server,"
-                   "allowing remote command, control, and telemetry.")
+__description__ = (
+    "MQTT Bridge bridges the WLAN Pi core REST API to a configured MQTT server,"
+    "allowing remote command, control, and telemetry."
+)
 __url__ = "https://github.com/rgnets/wlanpi-mqtt-bridge"
 __author__ = "Michael Ketchel"
 __author_email__ = "mdk@rgnets.com"

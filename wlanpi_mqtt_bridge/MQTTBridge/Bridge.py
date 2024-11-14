@@ -102,8 +102,8 @@ class Bridge:
             return self.handle_message(client, userdata, msg)
 
         self.mqtt_client.on_message = on_message
-        self.mqtt_client.on_disconnect = lambda *args : self.handle_disconnect(*args)
-        self.mqtt_client.on_connect_fail = lambda *args : self.handle_connect_fail(*args)
+        self.mqtt_client.on_disconnect = lambda *args: self.handle_disconnect(*args)
+        self.mqtt_client.on_connect_fail = lambda *args: self.handle_connect_fail(*args)
 
         self.mqtt_client.will_set(
             f"{self.my_base_topic}/status", "Abnormally Disconnected", 1, True
@@ -127,9 +127,7 @@ class Bridge:
                 )
                 time.sleep(10)
             except SSLCertVerificationError as e:
-                self.logger.error(
-                    f"SSL Error. Retrying in 10 seconds. Error: {e}"
-                )
+                self.logger.error(f"SSL Error. Retrying in 10 seconds. Error: {e}")
                 time.sleep(10)
 
         # Schedule some tasks with `https://schedule.readthedocs.io/en/stable/`
@@ -175,20 +173,22 @@ class Bridge:
         else:
             return True
 
-
     # noinspection PyUnusedLocal
     def handle_disconnect(self, client, *data) -> None:
-        self.logger.warning(f"Disconnected from MQTT server at {self.mqtt_server}:{self.mqtt_port}!")
+        self.logger.warning(
+            f"Disconnected from MQTT server at {self.mqtt_server}:{self.mqtt_port}!"
+        )
         self.connected = False
 
         self.logger.warning(f"Disconnect details: {data}")
 
     # noinspection PyUnusedLocal
     def handle_connect_fail(self, client, *data) -> None:
-        self.logger.warning(f"Failed to connect to MQTT server at {self.mqtt_server}:{self.mqtt_port}!")
+        self.logger.warning(
+            f"Failed to connect to MQTT server at {self.mqtt_server}:{self.mqtt_port}!"
+        )
         self.connected = False
         self.logger.warning(f"Failure details: {data}")
-
 
     # noinspection PyUnusedLocal
     def handle_connect(self, client, userdata, flags, reason_code, properties) -> None:
@@ -209,7 +209,6 @@ class Bridge:
             f"Connected to MQTT server at {self.mqtt_server}:{self.mqtt_port} with result code {reason_code}."
         )
 
-
         # Get our routes added.
         self.add_routes_from_openapi_definition()
 
@@ -221,7 +220,6 @@ class Bridge:
 
         # Once we're ready, announce that we're connected:
         client.publish(f"{self.my_base_topic}/status", "Connected", 1, True)
-
 
         self.connected = True
 
@@ -238,8 +236,6 @@ class Bridge:
             client.publish(
                 f"{model_base_topic}/{name.lower().replace(' ', '_')}", value, 1, True
             )
-
-
 
         # Now do the first round of periodic data:
         self.publish_periodic_data()
@@ -312,23 +308,31 @@ class Bridge:
                     bridge_ident = payload.get("_bridge_ident", None)
                     if bridge_ident is not None:
                         del payload["_bridge_ident"]
+                    query_params = payload.get("_query_params", None)
+                    if query_params is not None:
+                        del payload["_query_params"]
                     if not payload:
                         payload = None
                 else:
+                    query_params = None
                     payload = None
 
                 response = self.core_client.execute_request(
                     method=route.method,
                     path=route.route,
                     data=payload if route.method.lower() != "get" else None,
-                    params=payload if route.method.lower() == "get" else None,
+                    params=(
+                        payload
+                        if route.method.lower() == "get" and not query_params
+                        else query_params
+                    ),
                 )
                 mqtt_response = MQTTResponse(
                     status="success" if response.ok else "rest_error",
                     rest_status=response.status_code,
                     rest_reason=response.reason,
                     data=response.text,
-                    bridge_ident=bridge_ident
+                    bridge_ident=bridge_ident,
                 )
                 route.callback(
                     client=client,
@@ -345,7 +349,7 @@ class Bridge:
                     MQTTResponse(
                         status="bridge_error",
                         errors=[[get_full_class_name(e), str(e)]],
-                        bridge_ident = bridge_ident
+                        bridge_ident=bridge_ident,
                     ).to_json(),
                 )
 
