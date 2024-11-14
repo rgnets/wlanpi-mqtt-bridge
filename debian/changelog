@@ -1,3 +1,9 @@
+wlanpi-mqtt-bridge (1.0.0-1+deb12u10.5) UNRELEASED; urgency=medium
+
+  * Stable Release
+
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Thu, 14 Nov 2024 21:44:32 +0000
+
 wlanpi-mqtt-bridge (1.0.0-1+deb12u10.4) UNRELEASED; urgency=medium
   [ Michael Ketchel ]
   * Api parsing fix
