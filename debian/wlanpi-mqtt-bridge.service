@@ -6,7 +6,7 @@
 Description=Bridge between the configured MQTT server and WLAN Pi core
 After=network.target
 StartLimitIntervalSec=30
-StartLimitBurst=4
+StartLimitBurst=10
 
 [Service]
 Type=exec
@@ -21,7 +21,7 @@ KillMode=mixed
 TimeoutStopSec=5
 PrivateTmp=true
 
-Restart=on-failure
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

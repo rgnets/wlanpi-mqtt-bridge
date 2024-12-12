@@ -1,8 +1,9 @@
-wlanpi-mqtt-bridge (1.0.0-1+deb12u10.5) UNRELEASED; urgency=medium
+wlanpi-mqtt-bridge (1.0.0-1+deb12u10.6) UNRELEASED; urgency=medium
 
   * Stable Release
+  * Make service always restart. Dementia before death! Wait...
 
- -- Michael Ketchel <michael.ketchel@gmail.com>  Thu, 14 Nov 2024 21:44:32 +0000
+ -- Michael Ketchel <michael.ketchel@gmail.com>  Thu, 12 Dec 2024 04:00:50 +0000
 
 wlanpi-mqtt-bridge (1.0.0-1+deb12u10.4) UNRELEASED; urgency=medium
   [ Michael Ketchel ]
