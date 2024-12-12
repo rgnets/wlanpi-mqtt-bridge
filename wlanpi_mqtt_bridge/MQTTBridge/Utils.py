@@ -49,7 +49,7 @@ def get_default_gateways() -> dict[str, str]:
 
 def get_model_info() -> dict[str, str]:
     model_info = run_command(["wlanpi-model"]).output.split("\n")
-    split_model_info = [a.split(":", 1) for a in model_info if a.strip() != ""]
+    split_model_info = [a.split(":", 1) for a in model_info if (a.strip() != "" and ':' in a)]
     model_dict = {}
     for a, b in split_model_info:
         model_dict[a.strip()] = b.strip()
